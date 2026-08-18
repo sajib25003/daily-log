@@ -1,7 +1,18 @@
 "use client";
 import { signIn } from "next-auth/react";
+import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
+  const router = useRouter();
+  const handleLogin = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    // signIn("credentials", {
+    //   username: "testuser",
+    //   password: "testpassword",
+    //   callbackUrl: "/dashboard",
+    // });
+    router.push("/dashboard");
+  };
   return (
     <div className="min-h-screen w-full bg-linear-to-br from-slate-950 via-slate-900 to-slate-800 flex items-center justify-center p-6">
       <div className="w-full max-w-md rounded-3xl border border-slate-700/60 bg-slate-900/70 backdrop-blur-xl shadow-2xl p-8">
@@ -46,7 +57,10 @@ export default function LoginPage() {
             />
           </div>
 
-          <button className="w-full rounded-xl bg-indigo-600 py-3 font-semibold text-white transition hover:bg-indigo-500 active:scale-[0.98]">
+          <button
+            onClick={handleLogin}
+            className="w-full rounded-xl bg-indigo-600 py-3 font-semibold text-white transition hover:bg-indigo-500 active:scale-[0.98]"
+          >
             Login
           </button>
         </form>
