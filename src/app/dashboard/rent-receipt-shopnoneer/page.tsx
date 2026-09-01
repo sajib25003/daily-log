@@ -1,6 +1,7 @@
 "use client";
 import Image from "next/image";
 import React, { useMemo, useState } from "react";
+import { formatMonth } from "../rent-receipt-M2/page";
 
 const RentReceiptPage = () => {
   const currentMonth = new Date().toISOString().slice(0, 7);
@@ -15,6 +16,9 @@ const RentReceiptPage = () => {
     water: "",
     serviceCharge: "2000",
     garbage: "200",
+    adjustment: "",
+    note: "",
+    noteColor: "blue",
     advance: false,
 
     // Payment
@@ -22,12 +26,20 @@ const RentReceiptPage = () => {
     paymentDate: "",
   });
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value, type, checked } = e.target;
+  const handleChange = (
+    e: React.ChangeEvent<
+      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+    >,
+  ) => {
+    const { name } = e.target;
+    const value =
+      e.target instanceof HTMLInputElement && e.target.type === "checkbox"
+        ? e.target.checked
+        : e.target.value;
 
     setFormData((prev) => ({
       ...prev,
-      [name]: type === "checkbox" ? checked : value,
+      [name]: value,
     }));
   };
 
@@ -38,7 +50,8 @@ const RentReceiptPage = () => {
       Number(formData.gas || 0) +
       Number(formData.water || 0) +
       Number(formData.serviceCharge || 0) +
-      Number(formData.garbage || 0)
+      Number(formData.garbage || 0) -
+      Number(formData.adjustment || 0)
     );
   }, [formData]);
 
@@ -61,6 +74,9 @@ const RentReceiptPage = () => {
       water: "",
       serviceCharge: "2000",
       garbage: "200",
+      adjustment: "",
+      note: "",
+      noteColor: "blue",
       advance: false,
       isPaid: false,
       paymentDate: "",
@@ -198,6 +214,13 @@ const RentReceiptPage = () => {
                   value={formData.garbage}
                   onChange={handleChange}
                 />
+
+                <AmountInput
+                  label="Adjustment"
+                  name="adjustment"
+                  value={formData.adjustment}
+                  onChange={handleChange}
+                />
               </div>
             </div>
 
@@ -267,13 +290,42 @@ const RentReceiptPage = () => {
                 </div>
               )}
             </div>
+
+            {/* Optional Note */}
+            <div className="mt-5 rounded-lg border border-gray-200 p-4">
+              <div className="mb-2 flex items-center justify-between gap-3">
+                <label className="text-sm font-medium text-gray-700">
+                  নোট / নোটিশ (ঐচ্ছিক)
+                </label>
+
+                <select
+                  name="noteColor"
+                  value={formData.noteColor}
+                  onChange={handleChange}
+                  className="rounded-md border border-gray-300 bg-white px-2 py-1 text-xs outline-none focus:border-blue-500"
+                >
+                  <option value="blue">Blue</option>
+                  <option value="green">Green</option>
+                </select>
+              </div>
+
+              <textarea
+                name="note"
+                value={formData.note}
+                onChange={handleChange}
+                rows={3}
+                maxLength={250}
+                placeholder="রশিদে দেখানোর জন্য সংক্ষিপ্ত নোট লিখুন"
+                className="w-full resize-none rounded-lg border border-gray-300 px-3 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              />
+            </div>
           </div>
 
           {/* ================= RECEIPT ================= */}
           <div className="flex items-start justify-center">
             <div
               id="rent-receipt"
-              className="receipt-paper w-full max-w-150 bg-white p-8 shadow-lg"
+              className="receipt-paper relative w-full max-w-150 bg-white p-8 shadow-lg"
             >
               {/* Header */}
               <div className="text-center">
@@ -294,28 +346,33 @@ const RentReceiptPage = () => {
                 </div>
               </div>
 
-              {/* Paid Seal */}
-              {formData.isPaid && (
-                <div className="mt-5 flex justify-end absolute left-10 bottom-36 ">
-                  <div className="rounded-2xl border-4 border-green-600 bg-green-100 px-5 py-3 text-center text-green-600">
-                    <div className="text-base font-black tracking-widest">
-                      PAID
-                    </div>
+              {/* Payment Seal */}
 
-                    {formData.paymentDate && (
-                      <div className="mt-1 text-xs font-semibold">
-                        {new Date(
-                          `${formData.paymentDate}T00:00:00`,
-                        ).toLocaleDateString("bn-BD")}
-                      </div>
-                    )}
+              {/* <div className="absolute bottom-36 left-10 mt-5 flex justify-end">
+                <div
+                  className={`-rotate-3 rounded-lg border-4 px-5 py-2 text-center font-black ${
+                    formData.isPaid
+                      ? "border-emerald-600 bg-emerald-50 text-emerald-700"
+                      : "border-red-600 bg-red-50 text-red-700"
+                  }`}
+                >
+                  <div className="text-xl tracking-[0.18em]">
+                    {formData.isPaid ? "PAID" : "DUE"}
                   </div>
+
+                  {formData.isPaid && formData.paymentDate && (
+                    <div className="mt-1 border-t border-current pt-1 text-xs font-semibold tracking-normal">
+                      {new Date(
+                        `${formData.paymentDate}T00:00:00`,
+                      ).toLocaleDateString("bn-BD")}
+                    </div>
+                  )}
                 </div>
-              )}
+              </div> */}
 
               {/* Basic Information */}
               <div className="mt-7 space-y-3 text-[15px] text-black">
-                <div className="flex justify-between">
+                {/* <div className="flex justify-between">
                   <div className="flex">
                     <span className="mr-4 font-semibold">মাস:</span>
 
@@ -340,6 +397,32 @@ const RentReceiptPage = () => {
                         ? new Date(
                             `${formData.date}T00:00:00`,
                           ).toLocaleDateString("bn-BD")
+                        : ""}
+                    </span>
+                  </div>
+                </div> */}
+                <div className="flex w-full justify-between gap-4">
+                  {/* Month */}
+                  <div className="flex w-full items-end">
+                    <span className="mr-4 shrink-0 font-semibold">মাস:</span>
+
+                    <span className="min-h-6 flex-1 border-b border-dotted border-gray-500 px-1">
+                      {formatMonth(formData.month)}
+                    </span>
+                  </div>
+
+                  <div className="flex">
+                    <span className="mr-4 font-semibold">তারিখ:</span>
+
+                    <span className="flex-1 border-b border-dotted border-gray-500">
+                      {formData.date
+                        ? new Date(
+                            `${formData.date}T00:00:00`,
+                          ).toLocaleDateString("bn-BD", {
+                            day: "2-digit",
+                            month: "2-digit",
+                            year: "numeric",
+                          })
                         : ""}
                     </span>
                   </div>
@@ -377,6 +460,14 @@ const RentReceiptPage = () => {
 
                 <ReceiptRow label="ময়লার বিল" value={formData.garbage} />
 
+                {Number(formData.adjustment || 0) > 0 && (
+                  <ReceiptRow
+                    label="অ্যাডজাস্টমেন্ট (অগ্রিম কর্তন)"
+                    value={formData.adjustment}
+                    isDeduction
+                  />
+                )}
+
                 {/* Total */}
                 <div className="grid grid-cols-[1fr_150px] bg-gray-50 font-bold">
                   <div className="border-r border-gray-800 p-3">মোট</div>
@@ -385,17 +476,78 @@ const RentReceiptPage = () => {
                 </div>
               </div>
 
-              {/* Advance */}
-              <div className="mt-5 flex items-center gap-2 text-[15px]">
-                <span className="inline-flex h-5 w-5 items-center justify-center border border-gray-800 text-sm text-green-600">
-                  {formData.advance ? "✓" : ""}
-                </span>
+              {formData.note.trim() && (
+                <div
+                  className={`mt-4 whitespace-pre-wrap rounded-md border px-4 py-3 text-sm leading-6 ${
+                    formData.noteColor === "green"
+                      ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                      : "border-blue-200 bg-blue-50 text-blue-800"
+                  }`}
+                >
+                  <span className="font-bold">নোট: </span>
+                  {formData.note}
+                </div>
+              )}
 
-                <span className="font-semibold text-black">এডভান্স</span>
-              </div>
+              {/* Advance Seal */}
+              {/* {formData.advance && (
+                <div className="mt-5 inline-flex items-center gap-2 rounded-md border-2 border-blue-600 px-3 py-1.5 font-bold text-blue-700">
+                  <span className="flex h-5 w-5 items-center justify-center rounded bg-blue-600 text-sm text-white">
+                    ✓
+                  </span>
+
+                  <span>অগ্রিম (ADVANCE)</span>
+                </div>
+              )} */}
 
               {/* Signature */}
-              <div className="mt-4 flex justify-end">
+              {/* <div className="mt-4 flex justify-end">
+                <div className="w-44 text-center">
+                  <Image
+                    src="/signature.png"
+                    alt="Signature"
+                    width={176}
+                    height={44}
+                  />
+                  <div className="border-t border-gray-800 pt-2 text-sm font-medium text-black">
+                    অনুমোদিত ব্যক্তির স্বাক্ষর
+                  </div>
+                </div>
+              </div> */}
+              {/* Signature */}
+              <div className="mt-4 flex justify-between items-center">
+                <div className="mt-5 flex min-h-20 items-center justify-between gap-4">
+                  <div>
+                    {formData.advance && (
+                      <div className="inline-flex items-center gap-2 rounded-md border-2 border-blue-600 px-3 py-1.5 font-bold text-blue-700">
+                        <span className="flex h-5 w-5 items-center justify-center rounded bg-blue-600 text-sm text-white">
+                          ✓
+                        </span>
+                        <span>অগ্রিম (ADVANCE)</span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div
+                    className={`-rotate-3 rounded-lg border-4 px-5 py-2 text-center font-black ${
+                      formData.isPaid
+                        ? "border-emerald-600 bg-emerald-50 text-emerald-700"
+                        : "border-red-600 bg-red-50 text-red-700"
+                    }`}
+                  >
+                    <div className="text-xl tracking-[0.18em]">
+                      {formData.isPaid ? "PAID" : "DUE"}
+                    </div>
+
+                    {formData.isPaid && formData.paymentDate && (
+                      <div className="mt-1 border-t border-current pt-1 text-xs font-semibold tracking-normal">
+                        {new Date(
+                          `${formData.paymentDate}T00:00:00`,
+                        ).toLocaleDateString("bn-BD")}
+                      </div>
+                    )}
+                  </div>
+                </div>
                 <div className="w-44 text-center">
                   <Image
                     src="/signature.png"
@@ -500,14 +652,26 @@ const AmountInput = ({
   );
 };
 
-const ReceiptRow = ({ label, value }: { label: string; value: string }) => {
+const ReceiptRow = ({
+  label,
+  value,
+  isDeduction = false,
+}: {
+  label: string;
+  value: string;
+  isDeduction?: boolean;
+}) => {
   const amount = Number(value || 0);
 
   return (
     <div className="grid grid-cols-[1fr_150px] border-b border-gray-800">
       <div className="border-r border-gray-800 p-3">{label}</div>
 
-      <div className="p-3 text-right">৳ {amount.toLocaleString("en-IN")}</div>
+      <div
+        className={`p-3 text-right ${isDeduction ? "font-medium text-red-700" : ""}`}
+      >
+        {isDeduction ? "− " : ""}৳ {amount.toLocaleString("en-IN")}
+      </div>
     </div>
   );
 };
