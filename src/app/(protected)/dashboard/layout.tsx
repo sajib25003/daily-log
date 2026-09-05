@@ -8,7 +8,14 @@ export default function DashboardLayout({
 }>) {
   return (
     <div className="w-full">
-      <UserNavbar />
+      <UserNavbar
+        onSectionChange={(section) => {
+          console.log("Selected section:", section);
+        }}
+        onCreateUser={() => {
+          console.log("Open create-user modal");
+        }}
+      />
       <div className="flex min-h-screen flex-col  mx-auto max-w-7xl ">
         <div>{children}</div>
       </div>
