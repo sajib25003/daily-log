@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import LogoutButton from "./LogoutButton";
 
 const navigationItems = [
   { label: "Home", href: "/" },
@@ -28,7 +29,9 @@ const NavBar = () => {
     .sort((a, b) => b.href.length - a.href.length)[0]?.href;
 
   return (
-    <header className="sticky top-0 z-50 border-b border-slate-200 bg-white/90 shadow-sm backdrop-blur-md">
+    <header
+      className={`sticky top-0 z-50 border-b border-slate-200  bg-white/90 shadow-sm backdrop-blur-md ${pathname === "/" ? "hidden" : ""}`}
+    >
       <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-4 sm:px-6 md:flex-row md:items-center md:justify-between lg:px-8">
         {/* Brand */}
         <Link href="/" className="flex w-fit items-center gap-3">
@@ -43,7 +46,7 @@ const NavBar = () => {
         </Link>
 
         {/* Navigation */}
-        <nav className="flex items-center gap-1 overflow-x-auto rounded-xl border border-slate-200/70 bg-slate-100/70 p-1">
+        <nav className="flex items-center gap-1  rounded-xl border border-slate-200/70 bg-slate-100/70 p-1">
           {navigationItems.map((item) => {
             const isActive = activeHref === item.href;
 
@@ -66,6 +69,7 @@ const NavBar = () => {
               </Link>
             );
           })}
+          <LogoutButton />
         </nav>
       </div>
     </header>
