@@ -10,8 +10,7 @@ import {
   FaUsers,
 } from "react-icons/fa";
 
-type AllowedRole = "superAdmin" | "admin";
-
+type AllowedRole = "superAdmin" | "admin" | "owner";
 type MenuGroupId = "users" | "rent";
 
 export type DashboardSection =
@@ -34,7 +33,7 @@ export type DashboardSection =
 type MenuItem = {
   id: DashboardSection;
   label: string;
-  adminLabel?: string;
+  ownerLabel?: string;
   description: string;
   roles: AllowedRole[];
 };
@@ -60,47 +59,47 @@ const menuGroups: MenuGroup[] = [
     id: "users",
     label: "User Management",
     icon: FaUsers,
-    roles: ["superAdmin", "admin"],
+    roles: ["superAdmin", "admin", "owner"],
 
     items: [
       {
         id: "all-users",
         label: "All Users",
-        adminLabel: "My Tenants",
-        description: "View and manage users",
-        roles: ["superAdmin", "admin"],
+        ownerLabel: "My Tenants",
+        description: "View and manage accessible users",
+        roles: ["superAdmin", "admin", "owner"],
       },
       {
         id: "admins",
-        label: "Admins / Owners",
-        description: "View registered property owners",
+        label: "System Admins",
+        description: "View system administrator accounts",
         roles: ["superAdmin"],
       },
       {
         id: "tenants",
         label: "All Tenants",
         description: "View tenants from all owners",
-        roles: ["superAdmin"],
+        roles: ["superAdmin", "admin"],
       },
       {
         id: "general-users",
-        label: "General Users",
-        description: "View personal cashflow users",
-        roles: ["superAdmin"],
+        label: "Owners & General Users",
+        description: "View property owners and cashflow users",
+        roles: ["superAdmin", "admin"],
       },
       {
         id: "inactive-users",
         label: "Inactive Users",
-        adminLabel: "Inactive Tenants",
+        ownerLabel: "Inactive Tenants",
         description: "View inactive accounts",
-        roles: ["superAdmin", "admin"],
+        roles: ["superAdmin", "admin", "owner"],
       },
       {
         id: "create-user",
         label: "Create User",
-        adminLabel: "Create Tenant",
+        ownerLabel: "Create Tenant",
         description: "Create a new account",
-        roles: ["superAdmin", "admin"],
+        roles: ["superAdmin", "admin", "owner"],
       },
     ],
   },
@@ -109,57 +108,57 @@ const menuGroups: MenuGroup[] = [
     id: "rent",
     label: "Rent Management",
     icon: FaBuilding,
-    roles: ["superAdmin", "admin"],
+    roles: ["superAdmin", "admin", "owner"],
 
     items: [
       {
         id: "properties",
         label: "All Properties",
-        adminLabel: "My Properties",
+        ownerLabel: "My Properties",
         description: "Manage houses and properties",
-        roles: ["superAdmin", "admin"],
+        roles: ["superAdmin", "admin", "owner"],
       },
       {
         id: "flats",
         label: "All Flats / Units",
-        adminLabel: "My Flats / Units",
+        ownerLabel: "My Flats / Units",
         description: "Manage rentable flats",
-        roles: ["superAdmin", "admin"],
+        roles: ["superAdmin", "admin", "owner"],
       },
       {
         id: "tenant-assignments",
         label: "All Tenant Assignments",
-        adminLabel: "My Tenant Assignments",
-        description: "Manage flat and tenant connections",
-        roles: ["superAdmin", "admin"],
+        ownerLabel: "My Tenant Assignments",
+        description: "Manage unit and tenant connections",
+        roles: ["superAdmin", "admin", "owner"],
       },
       {
         id: "rent-records",
         label: "All Rent Records",
-        adminLabel: "My Rent Records",
+        ownerLabel: "My Rent Records",
         description: "View monthly rent records",
-        roles: ["superAdmin", "admin"],
+        roles: ["superAdmin", "admin", "owner"],
       },
       {
         id: "payments-dues",
         label: "All Payments & Dues",
-        adminLabel: "My Payments & Dues",
+        ownerLabel: "My Payments & Dues",
         description: "Track paid and due rent",
-        roles: ["superAdmin", "admin"],
+        roles: ["superAdmin", "admin", "owner"],
       },
       {
         id: "rent-receipts",
         label: "All Rent Receipts",
-        adminLabel: "My Rent Receipts",
+        ownerLabel: "My Rent Receipts",
         description: "View generated receipts",
-        roles: ["superAdmin", "admin"],
+        roles: ["superAdmin", "admin", "owner"],
       },
       {
         id: "rent-settings",
         label: "Rent Settings",
-        adminLabel: "My Rent Settings",
+        ownerLabel: "My Rent Settings",
         description: "Configure rent and bill settings",
-        roles: ["superAdmin", "admin"],
+        roles: ["superAdmin", "admin", "owner"],
       },
     ],
   },
@@ -308,8 +307,8 @@ const UserNavbar = ({ onSectionChange, onCreateUser }: UserNavbarProps) => {
                       const isCreateUser = item.id === "create-user";
 
                       const itemLabel =
-                        currentRole === "admin" && item.adminLabel
-                          ? item.adminLabel
+                        currentRole === "admin" && item.ownerLabel
+                          ? item.ownerLabel
                           : item.label;
 
                       return (

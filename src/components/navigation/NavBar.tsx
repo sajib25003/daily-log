@@ -1,6 +1,7 @@
 "use client";
 
 import { useAuth } from "@/context/AuthContext";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -11,7 +12,6 @@ import {
   FaKey,
   FaUser,
 } from "react-icons/fa";
-
 import LogoutButton from "./LogoutButton";
 
 type OpenMenu = "receipts" | "user" | null;
@@ -31,10 +31,11 @@ const receiptItems = [
 
 const roleLabels = {
   superAdmin: "Super Admin",
-  admin: "Admin / Owner",
+  admin: "System Admin",
+  owner: "Property Owner",
   tenant: "Tenant",
   user: "General User",
-};
+} as const;
 
 const NavBar = () => {
   const pathname = usePathname();
@@ -57,37 +58,31 @@ const NavBar = () => {
       return "Account";
     }
 
-    if (typeof user.name === "string") {
-      return user.name;
+    const fullName = [
+      user.name?.firstName,
+      user.name?.middleName,
+      user.name?.lastName,
+    ]
+      .filter(
+        (namePart): namePart is string =>
+          typeof namePart === "string" && namePart.trim().length > 0,
+      )
+      .map((namePart) => namePart.trim())
+      .join(" ");
+
+    if (fullName) {
+      return fullName;
     }
 
-    if (user.name) {
-      const fullName = [
-        user.name.firstName,
-        user.name.middleName,
-        user.name.lastName,
-      ]
-        .filter(Boolean)
-        .join(" ")
-        .trim();
-
-      if (fullName) {
-        return fullName;
-      }
-    }
-
-    return user.email.split("@")[0];
+    return user.email.split("@")[0] || "Account";
   };
 
   const displayName = getDisplayName();
 
   const roleLabel = user ? roleLabels[user.role] : "Not authenticated";
 
-  const userInitial = displayName.charAt(0).toUpperCase();
+  const userInitial = displayName.charAt(0).toUpperCase() || "A";
 
-  /*
-   * Dropdown-এর বাইরে click করলে dropdown বন্ধ হবে।
-   */
   useEffect(() => {
     const handleOutsideClick = (event: PointerEvent) => {
       if (
@@ -105,7 +100,6 @@ const NavBar = () => {
     };
 
     document.addEventListener("pointerdown", handleOutsideClick);
-
     document.addEventListener("keydown", handleEscape);
 
     return () => {
@@ -115,10 +109,7 @@ const NavBar = () => {
     };
   }, []);
 
-  /*
-   * "/" বর্তমানে login page।
-   * সব hooks call হওয়ার পরে condition দেওয়া হয়েছে।
-   */
+  // Root route হচ্ছে login page
   if (pathname === "/") {
     return null;
   }
@@ -126,46 +117,48 @@ const NavBar = () => {
   return (
     <header
       ref={navbarRef}
-      className="sticky top-0 z-50 border-b border-slate-200 bg-white/95 shadow-sm backdrop-blur-md"
+      className="sticky top-0 z-50 border-b border-slate-700/60 bg-slate-950/90 shadow-xl shadow-black/10 backdrop-blur-xl"
     >
-      <div className="mx-auto flex min-h-16 max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8">
+      <div className="mx-auto flex min-h-18 max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8">
+        {/* Brand */}
         {/* Brand */}
         <Link
           href="/dashboard"
           onClick={() => setOpenMenu(null)}
-          className="order-1 flex w-fit items-center gap-3"
+          className="order-1 flex shrink-0 items-center gap-3"
         >
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-slate-700 to-emerald-600 text-lg font-bold text-white shadow-sm">
-            A
-          </div>
-
-          <div>
-            <h1 className="font-bold leading-tight text-slate-900">AHB</h1>
-
-            <p className="text-xs text-slate-500">Receipt Management</p>
+          <div className="relative h-12 w-44 shrink-0 overflow-hidden rounded-xl border border-none  p-1 shadow-sm">
+            <Image
+              src="/logo.png"
+              alt="AHB Logo"
+              fill
+              sizes="176px"
+              priority
+              unoptimized
+              className="object-contain object-left brightness-0 invert"
+            />
           </div>
         </Link>
 
         {/* Main navigation */}
-        <nav className="order-3 flex w-full items-center gap-1 rounded-xl border border-slate-200/70 bg-slate-100/70 p-1 md:order-2 md:w-auto">
-          {/* Dashboard */}
+        <nav className="order-3 flex w-full items-center justify-center gap-1 rounded-xl border border-slate-700/60 bg-slate-900/80 p-1 md:order-2 md:w-auto">
           <Link
             href="/dashboard"
             onClick={() => setOpenMenu(null)}
             aria-current={isDashboardActive ? "page" : undefined}
             className={`relative whitespace-nowrap rounded-lg px-4 py-2 text-sm font-medium transition-all duration-200 ${
               isDashboardActive
-                ? "bg-white text-emerald-700 shadow-sm ring-1 ring-emerald-100"
-                : "text-slate-500 hover:bg-white hover:text-emerald-700"
+                ? "bg-indigo-600 text-white shadow-lg shadow-indigo-950/30"
+                : "text-slate-400 hover:bg-slate-800 hover:text-slate-100"
             }`}
           >
             Dashboard
             {isDashboardActive && (
-              <span className="absolute inset-x-4 -bottom-px h-0.5 rounded-full bg-emerald-500" />
+              <span className="absolute inset-x-4 -bottom-px h-0.5 rounded-full bg-indigo-300" />
             )}
           </Link>
 
-          {/* Receipts dropdown */}
+          {/* Receipt dropdown */}
           <div className="relative">
             <button
               type="button"
@@ -178,8 +171,8 @@ const NavBar = () => {
               }
               className={`flex items-center gap-2 whitespace-nowrap rounded-lg px-4 py-2 text-sm font-medium transition-all duration-200 ${
                 isReceiptActive
-                  ? "bg-white text-emerald-700 shadow-sm ring-1 ring-emerald-100"
-                  : "text-slate-500 hover:bg-white hover:text-emerald-700"
+                  ? "bg-indigo-600 text-white shadow-lg shadow-indigo-950/30"
+                  : "text-slate-400 hover:bg-slate-800 hover:text-slate-100"
               }`}
             >
               Receipts
@@ -193,10 +186,10 @@ const NavBar = () => {
             {openMenu === "receipts" && (
               <div
                 role="menu"
-                className="absolute left-0 top-full z-50 mt-2 w-72 overflow-hidden rounded-2xl border border-slate-200 bg-white p-2 shadow-xl"
+                className="absolute left-0 top-full z-50 mt-3 w-72 overflow-hidden rounded-2xl border border-slate-700/60 bg-slate-900 p-2 shadow-2xl shadow-black/30"
               >
                 <div className="px-3 pb-2 pt-1">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
                     Receipt templates
                   </p>
                 </div>
@@ -214,24 +207,24 @@ const NavBar = () => {
                       onClick={() => setOpenMenu(null)}
                       className={`flex items-center gap-3 rounded-xl px-3 py-3 transition ${
                         isActive
-                          ? "bg-emerald-50 text-emerald-700"
-                          : "text-slate-700 hover:bg-slate-50"
+                          ? "bg-indigo-500/15 text-indigo-300"
+                          : "text-slate-300 hover:bg-slate-800"
                       }`}
                     >
                       <div
                         className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
                           isActive
-                            ? "bg-emerald-100 text-emerald-700"
-                            : "bg-slate-100 text-slate-500"
+                            ? "bg-indigo-500/20 text-indigo-300"
+                            : "bg-slate-800 text-slate-400"
                         }`}
                       >
                         <FaFileInvoice />
                       </div>
 
-                      <div>
+                      <div className="min-w-0">
                         <p className="text-sm font-semibold">{item.label}</p>
 
-                        <p className="mt-0.5 text-xs text-slate-500">
+                        <p className="mt-0.5 truncate text-xs text-slate-500">
                           {item.description}
                         </p>
                       </div>
@@ -247,6 +240,7 @@ const NavBar = () => {
         <div className="relative order-2 md:order-3">
           <button
             type="button"
+            aria-label="Open user menu"
             aria-haspopup="menu"
             aria-expanded={openMenu === "user"}
             onClick={() =>
@@ -254,16 +248,14 @@ const NavBar = () => {
                 currentMenu === "user" ? null : "user",
               )
             }
-            className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-1.5 pr-3 transition hover:border-emerald-300 hover:bg-emerald-50/50"
+            className="flex items-center gap-3 rounded-xl border border-slate-700 bg-slate-900 p-1.5 pr-3 transition hover:border-indigo-500/60 hover:bg-slate-800"
           >
-            {/* Avatar */}
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-slate-700 to-emerald-600 text-sm font-bold text-white">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-linear-to-br from-indigo-500 to-violet-600 text-sm font-bold text-white shadow-md">
               {isAuthLoading ? "..." : userInitial}
             </div>
 
-            {/* Short user information */}
             <div className="hidden min-w-0 max-w-44 text-left sm:block">
-              <p className="truncate text-sm font-semibold text-slate-800">
+              <p className="truncate text-sm font-semibold text-slate-100">
                 {isAuthLoading ? "Loading account..." : displayName}
               </p>
 
@@ -273,7 +265,7 @@ const NavBar = () => {
             </div>
 
             <FaChevronDown
-              className={`text-xs text-slate-400 transition-transform duration-200 ${
+              className={`text-xs text-slate-500 transition-transform duration-200 ${
                 openMenu === "user" ? "rotate-180" : ""
               }`}
             />
@@ -282,17 +274,17 @@ const NavBar = () => {
           {openMenu === "user" && (
             <div
               role="menu"
-              className="absolute right-0 top-full z-50 mt-2 w-[min(19rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl"
+              className="absolute right-0 top-full z-50 mt-3 w-[min(19rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-slate-700/60 bg-slate-900 shadow-2xl shadow-black/30"
             >
-              {/* Full user information */}
-              <div className="border-b border-slate-100 bg-slate-50/80 p-4">
+              {/* User information */}
+              <div className="border-b border-slate-700/60 bg-slate-950/50 p-4">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-slate-700 to-emerald-600 text-lg font-bold text-white">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-linear-to-br from-indigo-500 to-violet-600 text-lg font-bold text-white shadow-md">
                     {userInitial}
                   </div>
 
                   <div className="min-w-0">
-                    <p className="truncate font-semibold text-slate-900">
+                    <p className="truncate font-semibold text-slate-100">
                       {displayName}
                     </p>
 
@@ -303,65 +295,39 @@ const NavBar = () => {
                 </div>
 
                 {user && (
-                  <span className="mt-3 inline-flex rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+                  <span className="mt-3 inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-1 text-xs font-semibold text-emerald-400">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
                     {roleLabel}
                   </span>
                 )}
               </div>
 
-              {/* Future settings */}
+              {/* Future account settings */}
               <div className="space-y-1 p-2">
-                <button
-                  type="button"
+                <MenuButton
+                  icon={<FaUser />}
+                  label="My Profile"
+                  description="Personal information"
                   title="Profile URL will be added later"
-                  className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-slate-700 transition hover:bg-slate-50"
-                >
-                  <FaUser className="text-slate-400" />
+                />
 
-                  <div>
-                    <p className="text-sm font-medium">My Profile</p>
-
-                    <p className="text-xs text-slate-400">
-                      Personal information
-                    </p>
-                  </div>
-                </button>
-
-                <button
-                  type="button"
+                <MenuButton
+                  icon={<FaCog />}
+                  label="Account Settings"
+                  description="Account preferences"
                   title="Settings URL will be added later"
-                  className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-slate-700 transition hover:bg-slate-50"
-                >
-                  <FaCog className="text-slate-400" />
+                />
 
-                  <div>
-                    <p className="text-sm font-medium">Account Settings</p>
-
-                    <p className="text-xs text-slate-400">
-                      Account preferences
-                    </p>
-                  </div>
-                </button>
-
-                <button
-                  type="button"
+                <MenuButton
+                  icon={<FaKey />}
+                  label="Change Password"
+                  description="Password and security"
                   title="Password URL will be added later"
-                  className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-slate-700 transition hover:bg-slate-50"
-                >
-                  <FaKey className="text-slate-400" />
-
-                  <div>
-                    <p className="text-sm font-medium">Change Password</p>
-
-                    <p className="text-xs text-slate-400">
-                      Password and security
-                    </p>
-                  </div>
-                </button>
+                />
               </div>
 
               {/* Logout */}
-              <div className="border-t border-slate-100 p-2">
+              <div className="border-t border-slate-700/60 p-2">
                 <LogoutButton />
               </div>
             </div>
@@ -371,5 +337,30 @@ const NavBar = () => {
     </header>
   );
 };
+
+type MenuButtonProps = {
+  icon: React.ReactNode;
+  label: string;
+  description: string;
+  title: string;
+};
+
+function MenuButton({ icon, label, description, title }: MenuButtonProps) {
+  return (
+    <button
+      type="button"
+      title={title}
+      className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-slate-300 transition hover:bg-slate-800 hover:text-white"
+    >
+      <span className="text-slate-500">{icon}</span>
+
+      <span>
+        <span className="block text-sm font-medium">{label}</span>
+
+        <span className="block text-xs text-slate-500">{description}</span>
+      </span>
+    </button>
+  );
+}
 
 export default NavBar;

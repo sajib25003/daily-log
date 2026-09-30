@@ -1,13 +1,11 @@
 "use client";
 
-import { ReactNode } from "react";
-
 import { AuthProvider } from "@/context/AuthContext";
 
-type ProvidersProps = {
-  children: ReactNode;
-};
-
-export default function Providers({ children }: ProvidersProps) {
+export default function Providers({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
   return <AuthProvider>{children}</AuthProvider>;
 }

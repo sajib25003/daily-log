@@ -1,5 +1,6 @@
 "use client";
 
+import { apiFetch } from "@/lib/apiClient";
 import {
   createContext,
   ReactNode,
@@ -9,12 +10,7 @@ import {
   useState,
 } from "react";
 
-const API_BASE_URL = (
-  process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:4000/api/v1"
-).replace(/\/$/, "");
-
-export type UserRole = "superAdmin" | "admin" | "tenant" | "user";
-
+export type UserRole = "superAdmin" | "admin" | "owner" | "tenant" | "user";
 export type AuthUser = {
   id: string;
   email: string;
@@ -26,7 +22,15 @@ export type AuthUser = {
     lastName: string;
   };
 
+  phone?: string;
   photo?: string | null;
+  provider?: "credentials";
+  userStatus?: "active" | "inactive";
+  ownerId?: string | null;
+
+  features?: {
+    personalCashflow: boolean;
+  };
 };
 
 type CurrentUserResponse = {
@@ -34,7 +38,7 @@ type CurrentUserResponse = {
   message?: string;
 
   data?: {
-    user: AuthUser;
+    user?: AuthUser;
   };
 };
 
@@ -51,33 +55,34 @@ type AuthProviderProps = {
   children: ReactNode;
 };
 
-/*
- * এটি শুধু API request করবে।
- * এখানে কোনো React state update নেই।
- */
 const requestCurrentUser = async (
   signal?: AbortSignal,
 ): Promise<AuthUser | null> => {
-  const response = await fetch(`${API_BASE_URL}/auth/me`, {
+  /*
+   * Access token expired হলে apiFetch:
+   * 1. refresh-token call করবে
+   * 2. নতুন cookie গ্রহণ করবে
+   * 3. /auth/me আবার call করবে
+   */
+  const response = await apiFetch("/auth/me", {
     method: "GET",
-    credentials: "include",
     cache: "no-store",
-    headers: {
-      Accept: "application/json",
-    },
     signal,
   });
-
-  if (response.status === 401) {
-    return null;
-  }
 
   const result = (await response
     .json()
     .catch(() => null)) as CurrentUserResponse | null;
 
+  if (response.status === 401 || response.status === 403) {
+    return null;
+  }
+
   if (!response.ok) {
-    throw new Error(result?.message ?? "Failed to load current user.");
+    throw new Error(
+      result?.message ??
+        `Failed to load current user. Status: ${response.status}`,
+    );
   }
 
   return result?.data?.user ?? null;
@@ -86,16 +91,8 @@ const requestCurrentUser = async (
 export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<AuthUser | null>(null);
 
-  /*
-   * Initial value true হওয়ায় useEffect-এর শুরুতে
-   * আবার setIsAuthLoading(true) করার দরকার নেই।
-   */
   const [isAuthLoading, setIsAuthLoading] = useState(true);
 
-  /*
-   * এটি button click বা অন্য event থেকে manually
-   * current user reload করার জন্য।
-   */
   const refreshUser = useCallback(async () => {
     setIsAuthLoading(true);
 
@@ -105,18 +102,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
       setUser(currentUser);
     } catch (error) {
       console.error("Current user fetch error:", error);
+
       setUser(null);
     } finally {
       setIsAuthLoading(false);
     }
   }, []);
 
-  /*
-   * App প্রথমবার load হলে cookie দিয়ে user পাওয়া হবে।
-   *
-   * Promise resolve হওয়ার পরে callback থেকে state update হচ্ছে।
-   * Effect body-তে synchronous setState হচ্ছে না।
-   */
   useEffect(() => {
     let isMounted = true;
     const controller = new AbortController();
