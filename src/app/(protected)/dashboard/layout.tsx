@@ -78,16 +78,7 @@ export default function DashboardLayout({
       )} */}
       {(user.role === "superAdmin" ||
         user.role === "admin" ||
-        user.role === "owner") && (
-        <UserNavbar
-          onSectionChange={(section) => {
-            console.log("Selected section:", section);
-          }}
-          onCreateUser={() => {
-            console.log("Open create-user modal");
-          }}
-        />
-      )}
+        user.role === "owner") && <UserNavbar />}
 
       <div>{children}</div>
     </>
