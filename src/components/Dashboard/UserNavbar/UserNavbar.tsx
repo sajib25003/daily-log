@@ -1,27 +1,17 @@
 "use client";
 
 import { useAuth } from "@/context/AuthContext";
-import { ComponentType, useEffect, useRef, useState } from "react";
-import {
-  FaBuilding,
-  FaCheck,
-  FaChevronDown,
-  FaUserPlus,
-  FaUsers,
-} from "react-icons/fa";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
+import type { ComponentType } from "react";
+import { FaBuilding, FaCheck, FaChevronDown, FaUsers } from "react-icons/fa";
 
 type AllowedRole = "superAdmin" | "admin" | "owner";
 type MenuGroupId = "users" | "rent";
 
 export type DashboardSection =
-  // User management
-  | "all-users"
-  | "admins"
-  | "tenants"
-  | "general-users"
-  | "inactive-users"
   | "create-user"
-  // Rent management
   | "properties"
   | "flats"
   | "tenant-assignments"
@@ -31,134 +21,107 @@ export type DashboardSection =
   | "rent-settings";
 
 type MenuItem = {
-  id: DashboardSection;
+  id: string;
   label: string;
   ownerLabel?: string;
-  description: string;
   roles: AllowedRole[];
+  href?: string;
+  section?: DashboardSection;
 };
 
 type MenuGroup = {
   id: MenuGroupId;
   label: string;
-  icon: ComponentType<{
-    className?: string;
-  }>;
+  icon: ComponentType<{ className?: string }>;
   roles: AllowedRole[];
   items: MenuItem[];
 };
 
 type UserNavbarProps = {
   onSectionChange?: (section: DashboardSection) => void;
-
   onCreateUser?: () => void;
 };
+
+const GLOBAL_ROLES: AllowedRole[] = ["superAdmin", "admin"];
+const PROPERTY_MANAGER_ROLES: AllowedRole[] = ["superAdmin", "admin", "owner"];
 
 const menuGroups: MenuGroup[] = [
   {
     id: "users",
     label: "User Management",
     icon: FaUsers,
-    roles: ["superAdmin", "admin", "owner"],
-
+    roles: PROPERTY_MANAGER_ROLES,
     items: [
       {
-        id: "all-users",
+        id: "users-list",
         label: "All Users",
         ownerLabel: "My Tenants",
-        description: "View and manage accessible users",
-        roles: ["superAdmin", "admin", "owner"],
-      },
-      {
-        id: "admins",
-        label: "System Admins",
-        description: "View system administrator accounts",
-        roles: ["superAdmin"],
-      },
-      {
-        id: "tenants",
-        label: "All Tenants",
-        description: "View tenants from all owners",
-        roles: ["superAdmin", "admin"],
-      },
-      {
-        id: "general-users",
-        label: "Owners & General Users",
-        description: "View property owners and cashflow users",
-        roles: ["superAdmin", "admin"],
-      },
-      {
-        id: "inactive-users",
-        label: "Inactive Users",
-        ownerLabel: "Inactive Tenants",
-        description: "View inactive accounts",
-        roles: ["superAdmin", "admin", "owner"],
+        roles: PROPERTY_MANAGER_ROLES,
+        href: "/dashboard/users",
       },
       {
         id: "create-user",
         label: "Create User",
         ownerLabel: "Create Tenant",
-        description: "Create a new account",
-        roles: ["superAdmin", "admin", "owner"],
+        roles: PROPERTY_MANAGER_ROLES,
+        href: "/dashboard/users/create",
       },
     ],
   },
-
   {
     id: "rent",
     label: "Rent Management",
     icon: FaBuilding,
-    roles: ["superAdmin", "admin", "owner"],
-
+    roles: PROPERTY_MANAGER_ROLES,
     items: [
       {
         id: "properties",
         label: "All Properties",
         ownerLabel: "My Properties",
-        description: "Manage houses and properties",
-        roles: ["superAdmin", "admin", "owner"],
+        roles: PROPERTY_MANAGER_ROLES,
+        section: "properties",
       },
       {
         id: "flats",
         label: "All Flats / Units",
         ownerLabel: "My Flats / Units",
-        description: "Manage rentable flats",
-        roles: ["superAdmin", "admin", "owner"],
+        roles: PROPERTY_MANAGER_ROLES,
+        section: "flats",
       },
       {
         id: "tenant-assignments",
         label: "All Tenant Assignments",
         ownerLabel: "My Tenant Assignments",
-        description: "Manage unit and tenant connections",
-        roles: ["superAdmin", "admin", "owner"],
+        roles: PROPERTY_MANAGER_ROLES,
+        section: "tenant-assignments",
       },
       {
         id: "rent-records",
         label: "All Rent Records",
         ownerLabel: "My Rent Records",
-        description: "View monthly rent records",
-        roles: ["superAdmin", "admin", "owner"],
+        roles: PROPERTY_MANAGER_ROLES,
+        section: "rent-records",
       },
       {
         id: "payments-dues",
         label: "All Payments & Dues",
         ownerLabel: "My Payments & Dues",
-        description: "Track paid and due rent",
-        roles: ["superAdmin", "admin", "owner"],
+        roles: PROPERTY_MANAGER_ROLES,
+        section: "payments-dues",
       },
       {
         id: "rent-receipts",
         label: "All Rent Receipts",
         ownerLabel: "My Rent Receipts",
-        description: "View generated receipts",
-        roles: ["superAdmin", "admin", "owner"],
+        roles: PROPERTY_MANAGER_ROLES,
+        section: "rent-receipts",
       },
       {
         id: "rent-settings",
         label: "Rent Settings",
         ownerLabel: "My Rent Settings",
-        description: "Configure rent and bill settings",
-        roles: ["superAdmin", "admin", "owner"],
+        roles: PROPERTY_MANAGER_ROLES,
+        section: "rent-settings",
       },
     ],
   },
@@ -166,11 +129,10 @@ const menuGroups: MenuGroup[] = [
 
 const UserNavbar = ({ onSectionChange, onCreateUser }: UserNavbarProps) => {
   const { user, isAuthLoading } = useAuth();
-
+  const pathname = usePathname();
   const navbarRef = useRef<HTMLDivElement>(null);
 
   const [openMenu, setOpenMenu] = useState<MenuGroupId | null>(null);
-
   const [activeSection, setActiveSection] = useState<DashboardSection | null>(
     null,
   );
@@ -186,173 +148,161 @@ const UserNavbar = ({ onSectionChange, onCreateUser }: UserNavbarProps) => {
     };
 
     const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setOpenMenu(null);
-      }
+      if (event.key === "Escape") setOpenMenu(null);
     };
 
     document.addEventListener("pointerdown", handleOutsideClick);
-
     document.addEventListener("keydown", handleEscape);
 
     return () => {
       document.removeEventListener("pointerdown", handleOutsideClick);
-
       document.removeEventListener("keydown", handleEscape);
     };
   }, []);
 
   if (isAuthLoading) {
     return (
-      <div className="border-b border-slate-200 bg-white">
-        <div className="mx-auto flex max-w-7xl gap-3 px-4 py-3 sm:px-6 lg:px-8">
-          <div className="h-10 w-44 animate-pulse rounded-xl bg-slate-200" />
-
-          <div className="h-10 w-44 animate-pulse rounded-xl bg-slate-200" />
+      <div className="border-b border-slate-800 bg-slate-950">
+        <div className="mx-auto flex h-14 max-w-7xl items-center gap-2 px-4 sm:px-6 lg:px-8">
+          <div className="h-9 w-36 animate-pulse rounded-lg bg-slate-800" />
+          <div className="h-9 w-36 animate-pulse rounded-lg bg-slate-800" />
         </div>
       </div>
     );
   }
 
-  /*
-   * এই management navbar শুধু superAdmin এবং admin দেখবে।
-   */
-  if (!user || (user.role !== "superAdmin" && user.role !== "admin")) {
+  if (!user || !["superAdmin", "admin", "owner"].includes(user.role)) {
     return null;
   }
 
-  const currentRole: AllowedRole = user.role;
+  const currentRole = user.role as AllowedRole;
+  const hasGlobalAccess = GLOBAL_ROLES.includes(currentRole);
 
   const availableGroups = menuGroups
     .filter((group) => group.roles.includes(currentRole))
     .map((group) => ({
       ...group,
-
       items: group.items.filter((item) => item.roles.includes(currentRole)),
     }));
+
+  const isPathActive = (href?: string) => {
+    if (!href) return false;
+
+    if (href === "/dashboard/users") {
+      return pathname === href;
+    }
+
+    return pathname === href || pathname.startsWith(`${href}/`);
+  };
 
   const handleSectionChange = (section: DashboardSection) => {
     setActiveSection(section);
     setOpenMenu(null);
-
     onSectionChange?.(section);
 
-    if (section === "create-user") {
-      onCreateUser?.();
-    }
+    if (section === "create-user") onCreateUser?.();
   };
 
   return (
-    <div className="border-b border-slate-200 bg-slate-600  shadow-sm flex justify-center">
+    <nav className="relative z-40 border-b border-slate-800 bg-slate-950/95 backdrop-blur-xl">
       <div
         ref={navbarRef}
-        className="mx-auto flex max-w-7xl items-center gap-2 px-4 py-1 sm:px-6 lg:px-8"
+        className="mx-auto flex min-h-14 max-w-7xl flex-wrap items-center gap-1.5 px-4 py-2 sm:px-6 lg:px-8"
       >
+        <span className="mr-2 hidden text-xs font-medium uppercase tracking-wider text-slate-500 md:block">
+          {hasGlobalAccess ? "Management" : "My Management"}
+        </span>
+
         {availableGroups.map((group) => {
           const GroupIcon = group.icon;
-
-          const isGroupActive = group.items.some(
-            (item) => item.id === activeSection,
+          const hasActiveRoute = group.items.some((item) =>
+            isPathActive(item.href),
           );
+          const hasActiveSection = group.items.some(
+            (item) => item.section === activeSection,
+          );
+          const isGroupActive = hasActiveRoute || hasActiveSection;
+          const isOpen = openMenu === group.id;
 
           return (
             <div key={group.id} className="relative">
-              {/* Main menu button */}
               <button
                 type="button"
                 aria-haspopup="menu"
-                aria-expanded={openMenu === group.id}
+                aria-expanded={isOpen}
                 onClick={() =>
-                  setOpenMenu((currentMenu) =>
-                    currentMenu === group.id ? null : group.id,
+                  setOpenMenu((current) =>
+                    current === group.id ? null : group.id,
                   )
                 }
-                className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition ${
-                  isGroupActive
-                    ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100"
-                    : "text-slate-50 hover:bg-slate-100 hover:text-slate-900"
+                className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium outline-none transition focus-visible:ring-2 focus-visible:ring-emerald-400/70 ${
+                  isGroupActive || isOpen
+                    ? "bg-slate-800 text-emerald-300"
+                    : "text-slate-300 hover:bg-slate-900 hover:text-white"
                 }`}
               >
                 <GroupIcon className="text-sm" />
-
                 <span>{group.label}</span>
-
                 <FaChevronDown
-                  className={`text-xs transition-transform duration-200 ${
-                    openMenu === group.id ? "rotate-180" : ""
+                  className={`text-[10px] transition-transform ${
+                    isOpen ? "rotate-180" : ""
                   }`}
                 />
               </button>
 
-              {/* Dropdown */}
-              {openMenu === group.id && (
+              {isOpen && (
                 <div
                   role="menu"
-                  className="absolute left-0 top-full z-40 mt-2 w-72 overflow-hidden rounded-2xl border border-slate-200 bg-white p-2 shadow-xl"
+                  className="absolute left-0 top-full z-50 mt-2 w-60 overflow-hidden rounded-xl border border-slate-700 bg-slate-900 p-1.5 shadow-xl shadow-black/30"
                 >
-                  <div className="border-b border-slate-100 px-3 pb-3 pt-2">
-                    <div className="flex items-center gap-2">
-                      <GroupIcon className="text-emerald-600" />
-
-                      <p className="text-sm font-semibold text-slate-900">
-                        {group.label}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="space-y-1 pt-2">
+                  <div className="max-h-80 space-y-0.5 overflow-y-auto">
                     {group.items.map((item) => {
-                      const isActive = activeSection === item.id;
-
-                      const isCreateUser = item.id === "create-user";
-
                       const itemLabel =
-                        currentRole === "admin" && item.ownerLabel
+                        currentRole === "owner" && item.ownerLabel
                           ? item.ownerLabel
                           : item.label;
+                      const isRouteActive = isPathActive(item.href);
+                      const isSectionActive = item.section === activeSection;
+                      const isActive = isRouteActive || isSectionActive;
 
-                      return (
-                        <div
+                      const content = (
+                        <>
+                          <span>{itemLabel}</span>
+                          {isActive && (
+                            <FaCheck className="shrink-0 text-[10px] text-emerald-400" />
+                          )}
+                        </>
+                      );
+
+                      const className = `flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2.5 text-left text-sm outline-none transition focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-400/60 ${
+                        isActive
+                          ? "bg-emerald-500/10 text-emerald-300"
+                          : "text-slate-300 hover:bg-slate-800 hover:text-white"
+                      }`;
+
+                      return item.href ? (
+                        <Link
                           key={item.id}
-                          className={
-                            isCreateUser
-                              ? "mt-2 border-t border-slate-100 pt-2"
-                              : ""
-                          }
+                          href={item.href}
+                          role="menuitem"
+                          aria-current={isRouteActive ? "page" : undefined}
+                          onClick={() => setOpenMenu(null)}
+                          className={className}
                         >
-                          <button
-                            type="button"
-                            role="menuitem"
-                            onClick={() => handleSectionChange(item.id)}
-                            className={`flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2.5 text-left transition ${
-                              isActive
-                                ? "bg-emerald-50 text-emerald-700"
-                                : isCreateUser
-                                  ? "text-emerald-700 hover:bg-emerald-50"
-                                  : "text-slate-700 hover:bg-slate-50"
-                            }`}
-                          >
-                            <div className="flex min-w-0 items-start gap-3">
-                              {isCreateUser && (
-                                <FaUserPlus className="mt-1 shrink-0 text-sm" />
-                              )}
-
-                              <div className="min-w-0">
-                                <p className="text-sm font-medium">
-                                  {itemLabel}
-                                </p>
-
-                                <p className="mt-0.5 text-xs text-slate-400">
-                                  {item.description}
-                                </p>
-                              </div>
-                            </div>
-
-                            {isActive && (
-                              <FaCheck className="shrink-0 text-xs text-emerald-600" />
-                            )}
-                          </button>
-                        </div>
+                          {content}
+                        </Link>
+                      ) : (
+                        <button
+                          key={item.id}
+                          type="button"
+                          role="menuitem"
+                          onClick={() =>
+                            item.section && handleSectionChange(item.section)
+                          }
+                          className={className}
+                        >
+                          {content}
+                        </button>
                       );
                     })}
                   </div>
@@ -362,7 +312,7 @@ const UserNavbar = ({ onSectionChange, onCreateUser }: UserNavbarProps) => {
           );
         })}
       </div>
-    </div>
+    </nav>
   );
 };
 

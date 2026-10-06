@@ -289,17 +289,15 @@ const NavBar = () => {
                     </p>
 
                     <p className="truncate text-sm text-slate-500">
-                      {user?.email ?? "No user information"}
+                      {user && (
+                        <span className="mt-1 inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-1 text-xs font-semibold text-emerald-400">
+                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                          {roleLabel}
+                        </span>
+                      )}
                     </p>
                   </div>
                 </div>
-
-                {user && (
-                  <span className="mt-3 inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-1 text-xs font-semibold text-emerald-400">
-                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-                    {roleLabel}
-                  </span>
-                )}
               </div>
 
               {/* Future account settings */}
