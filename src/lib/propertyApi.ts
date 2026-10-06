@@ -1,12 +1,16 @@
-import { apiFetch } from "@/lib/apiClient";
+import { apiFetch } from '@/lib/apiClient';
 import type {
   Apartment,
   ApartmentFormData,
   ApartmentListData,
+  MoveOutFormData,
   Property,
   PropertyFormData,
+  Tenancy,
+  TenancyFormData,
+  TenancyListData,
   UserReference,
-} from "@/types/property";
+} from '@/types/property';
 
 type ApiResponse<T> = {
   success?: boolean;
@@ -21,32 +25,32 @@ const request = async <T>(
 ): Promise<T> => {
   const headers = new Headers(options.headers);
 
-  if (!headers.has("Accept")) {
-    headers.set("Accept", "application/json");
+  if (!headers.has('Accept')) {
+    headers.set('Accept', 'application/json');
   }
 
-  if (options.body && !headers.has("Content-Type")) {
-    headers.set("Content-Type", "application/json");
+  if (options.body && !headers.has('Content-Type')) {
+    headers.set('Content-Type', 'application/json');
   }
 
   const response = await apiFetch(path, {
     ...options,
     headers,
-    cache: "no-store",
+    cache: 'no-store',
   });
 
-  const result = (await response
-    .json()
-    .catch(() => null)) as ApiResponse<T> | null;
+  const result = (await response.json().catch(() => null)) as
+    | ApiResponse<T>
+    | null;
 
   if (!response.ok) {
     throw new Error(
-      result?.message || result?.error || "The request could not be completed.",
+      result?.message || result?.error || 'The request could not be completed.',
     );
   }
 
   if (result?.data === undefined) {
-    throw new Error("The server returned an empty response.");
+    throw new Error('The server returned an empty response.');
   }
 
   return result.data;
@@ -58,21 +62,20 @@ export const listProperties = (filters?: {
 }) => {
   const searchParams = new URLSearchParams();
 
-  if (filters?.ownerId) searchParams.set("ownerId", filters.ownerId);
-  if (filters?.search?.trim())
-    searchParams.set("search", filters.search.trim());
+  if (filters?.ownerId) searchParams.set('ownerId', filters.ownerId);
+  if (filters?.search?.trim()) searchParams.set('search', filters.search.trim());
 
   const query = searchParams.toString();
 
-  return request<Property[]>(`/properties${query ? `?${query}` : ""}`);
+  return request<Property[]>(`/properties${query ? `?${query}` : ''}`);
 };
 
 export const getProperty = (propertyId: string) =>
   request<Property>(`/properties/${propertyId}`);
 
 export const createProperty = (payload: PropertyFormData) =>
-  request<Property>("/properties", {
-    method: "POST",
+  request<Property>('/properties', {
+    method: 'POST',
     body: JSON.stringify({
       property: {
         name: payload.name.trim(),
@@ -85,10 +88,10 @@ export const createProperty = (payload: PropertyFormData) =>
 
 export const updateProperty = (
   propertyId: string,
-  payload: Pick<PropertyFormData, "name" | "address" | "note">,
+  payload: Pick<PropertyFormData, 'name' | 'address' | 'note'>,
 ) =>
   request<Property>(`/properties/${propertyId}`, {
-    method: "PATCH",
+    method: 'PATCH',
     body: JSON.stringify({
       property: {
         name: payload.name.trim(),
@@ -100,11 +103,11 @@ export const updateProperty = (
 
 export const deleteProperty = (propertyId: string) =>
   request<{
-    deletionType: "hard" | "soft";
+    deletionType: 'hard' | 'soft';
     property: Property;
     apartmentDependencyCount: number;
   }>(`/properties/${propertyId}`, {
-    method: "DELETE",
+    method: 'DELETE',
   });
 
 export const listApartments = (propertyId: string) =>
@@ -115,7 +118,7 @@ export const createApartment = (
   payload: ApartmentFormData,
 ) =>
   request<Apartment>(`/properties/${propertyId}/apartments`, {
-    method: "POST",
+    method: 'POST',
     body: JSON.stringify({
       apartment: {
         apartmentNumber: payload.apartmentNumber.trim(),
@@ -129,7 +132,7 @@ export const updateApartment = (
   payload: ApartmentFormData,
 ) =>
   request<Apartment>(`/apartments/${apartmentId}`, {
-    method: "PATCH",
+    method: 'PATCH',
     body: JSON.stringify({
       apartment: {
         apartmentNumber: payload.apartmentNumber.trim(),
@@ -140,16 +143,135 @@ export const updateApartment = (
 
 export const deleteApartment = (apartmentId: string) =>
   request<{
-    deletionType: "hard";
+    deletionType: 'hard' | 'soft';
     apartment: Apartment;
+    tenancyHistoryCount: number;
   }>(`/apartments/${apartmentId}`, {
-    method: "DELETE",
+    method: 'DELETE',
   });
 
 export const listActiveOwners = async () => {
-  const users = await request<UserReference[]>("/users");
+  const users = await request<UserReference[]>('/users');
 
   return users.filter(
-    (user) => user.role === "owner" && user.userStatus !== "inactive",
+    (user) => user.role === 'owner' && user.userStatus !== 'inactive',
   );
+};
+
+export const listAssignableTenants = async (ownerId: string) => {
+  const users = await request<UserReference[]>('/users');
+
+  return users.filter(
+    (user) =>
+      user.role === 'tenant' &&
+      user.userStatus !== 'inactive' &&
+      getReferenceId(user.ownerId) === ownerId,
+  );
+};
+
+export const createTenancy = (
+  apartmentId: string,
+  payload: TenancyFormData,
+) =>
+  request<Tenancy>('/tenancies', {
+    method: 'POST',
+    body: JSON.stringify({
+      tenancy: {
+        apartmentId,
+        tenantId: payload.tenantId,
+        startDate: payload.startDate,
+        note: payload.note.trim() || null,
+      },
+    }),
+  });
+
+export const endTenancy = (
+  tenancyId: string,
+  payload: MoveOutFormData,
+) =>
+  request<Tenancy>(`/tenancies/${tenancyId}/end`, {
+    method: 'PATCH',
+    body: JSON.stringify({
+      tenancy: {
+        endDate: payload.endDate,
+        moveOutNote: payload.moveOutNote.trim() || null,
+      },
+    }),
+  });
+
+export const listTenancies = (filters?: {
+  ownerId?: string;
+  propertyId?: string;
+  apartmentId?: string;
+  tenantId?: string;
+  status?: 'active' | 'ended';
+  page?: number;
+  limit?: number;
+}) => {
+  const searchParams = new URLSearchParams();
+
+  if (filters?.ownerId) searchParams.set('ownerId', filters.ownerId);
+  if (filters?.propertyId) searchParams.set('propertyId', filters.propertyId);
+  if (filters?.apartmentId) {
+    searchParams.set('apartmentId', filters.apartmentId);
+  }
+  if (filters?.tenantId) searchParams.set('tenantId', filters.tenantId);
+  if (filters?.status) searchParams.set('status', filters.status);
+  if (filters?.page) searchParams.set('page', filters.page.toString());
+  if (filters?.limit) searchParams.set('limit', filters.limit.toString());
+
+  const query = searchParams.toString();
+  return request<TenancyListData>(`/tenancies${query ? `?${query}` : ''}`);
+};
+
+export const listActiveTenancies = (
+  filters: {
+    ownerId?: string;
+    propertyId?: string;
+    apartmentId?: string;
+    tenantId?: string;
+    page?: number;
+    limit?: number;
+  } = {},
+) =>
+  listTenancies({
+    ...filters,
+    status: 'active',
+  });
+
+export const listAllActiveTenancies = async (filters?: {
+  ownerId?: string;
+  propertyId?: string;
+  apartmentId?: string;
+  tenantId?: string;
+}) => {
+  const items: Tenancy[] = [];
+  let page = 1;
+  let totalPages = 1;
+
+  do {
+    const result = await listTenancies({
+      ...filters,
+      status: 'active',
+      page,
+      limit: 100,
+    });
+
+    items.push(...result.items);
+    totalPages = result.meta.totalPages;
+    page += 1;
+  } while (page <= totalPages);
+
+  return items;
+};
+
+export const getMyCurrentTenancy = () =>
+  request<Tenancy | null>('/tenancies/my-current');
+
+const getReferenceId = (
+  value?: string | { _id?: string; id?: string } | null,
+) => {
+  if (!value) return '';
+  if (typeof value === 'string') return value;
+  return value._id ?? value.id ?? '';
 };
