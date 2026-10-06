@@ -792,7 +792,7 @@ function PropertyApartmentsContent() {
                             <p className="text-[10px] font-semibold uppercase tracking-wider text-amber-400/80">
                               Assignment note
                             </p>
-                            <p className="mt-1 whitespace-pre-wrap break-words text-xs leading-5 text-slate-300">
+                            <p className="mt-1 max-h-20 overflow-y-auto whitespace-pre-wrap break-words pr-1 text-xs leading-5 text-slate-300">
                               {currentTenancy.note}
                             </p>
                           </div>
@@ -806,22 +806,24 @@ function PropertyApartmentsContent() {
                     )}
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={() =>
-                      isOccupied
-                        ? openMoveOut(apartment)
-                        : openAssignTenant(apartment)
-                    }
-                    className={`mt-auto inline-flex w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition ${
-                      isOccupied
-                        ? 'border border-amber-500/25 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20'
-                        : 'bg-indigo-600 text-white hover:bg-indigo-500'
-                    }`}
-                  >
-                    {isOccupied ? <FaUserMinus /> : <FaUserPlus />}
-                    {isOccupied ? 'Move Out' : 'Assign Tenant'}
-                  </button>
+                  <div className="mt-auto pt-4">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        isOccupied
+                          ? openMoveOut(apartment)
+                          : openAssignTenant(apartment)
+                      }
+                      className={`inline-flex w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition ${
+                        isOccupied
+                          ? 'border border-amber-500/25 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20'
+                          : 'bg-indigo-600 text-white hover:bg-indigo-500'
+                      }`}
+                    >
+                      {isOccupied ? <FaUserMinus /> : <FaUserPlus />}
+                      {isOccupied ? 'Move Out' : 'Assign Tenant'}
+                    </button>
+                  </div>
                 </article>
               );
             })}
