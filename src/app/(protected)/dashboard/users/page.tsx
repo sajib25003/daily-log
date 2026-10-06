@@ -1,7 +1,11 @@
 "use client";
 
 import { useAuth } from "@/context/AuthContext";
+import { useBodyScrollLock } from "@/hooks/useBodyScrollLock";
 import { apiFetch } from "@/lib/apiClient";
+import { listAllActiveTenancies } from "@/lib/propertyApi";
+import type { Tenancy } from "@/types/property";
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import type { FormEvent, ReactNode } from "react";
 import Swal from "sweetalert2";
@@ -99,7 +103,8 @@ const roleBadgeClasses: Record<UserRole, string> = {
   superAdmin:
     "bg-violet-500/15 text-violet-300 ring-1 ring-inset ring-violet-500/20",
   admin: "bg-blue-500/15 text-blue-300 ring-1 ring-inset ring-blue-500/20",
-  owner: "bg-amber-500/15 text-amber-300 ring-1 ring-inset ring-amber-500/20",
+  owner:
+    "bg-amber-500/15 text-amber-300 ring-1 ring-inset ring-amber-500/20",
   tenant:
     "bg-emerald-500/15 text-emerald-300 ring-1 ring-inset ring-emerald-500/20",
   user: "bg-slate-500/15 text-slate-300 ring-1 ring-inset ring-slate-500/20",
@@ -152,9 +157,9 @@ const requestUsers = async () => {
     cache: "no-store",
   });
 
-  const result = (await response
-    .json()
-    .catch(() => null)) as UsersResponse | null;
+  const result = (await response.json().catch(() => null)) as
+    | UsersResponse
+    | null;
 
   if (!response.ok) {
     throw new Error(result?.message ?? "Failed to load users.");
@@ -163,17 +168,43 @@ const requestUsers = async () => {
   return Array.isArray(result?.data) ? result.data : [];
 };
 
+const getTenancyProperty = (tenancy?: Tenancy) =>
+  tenancy && typeof tenancy.propertyId === "object"
+    ? tenancy.propertyId
+    : undefined;
+
+const getTenancyApartment = (tenancy?: Tenancy) =>
+  tenancy && typeof tenancy.apartmentId === "object"
+    ? tenancy.apartmentId
+    : undefined;
+
+const getTenancyLocation = (tenancy?: Tenancy) => {
+  if (!tenancy) return "Not assigned";
+
+  const property = getTenancyProperty(tenancy);
+  const apartment = getTenancyApartment(tenancy);
+
+  if (!property && !apartment) return "Assigned apartment";
+
+  return [property?.name, apartment?.apartmentNumber]
+    .filter(Boolean)
+    .join(" / ");
+};
+
 export default function UserManagementPage() {
   const { user } = useAuth();
 
   const [users, setUsers] = useState<ManagedUser[]>([]);
+  const [activeTenancies, setActiveTenancies] = useState<Tenancy[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState("");
 
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState<"all" | UserRole>("all");
-  const [statusFilter, setStatusFilter] = useState<"all" | UserStatus>("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | UserStatus>(
+    "all",
+  );
   const [ownerFilter, setOwnerFilter] = useState("all");
 
   const [editingUser, setEditingUser] = useState<ManagedUser | null>(null);
@@ -187,18 +218,31 @@ export default function UserManagementPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
 
-  const hasGlobalAccess = user?.role === "superAdmin" || user?.role === "admin";
+  useBodyScrollLock(Boolean(editingUser));
+
+  const hasGlobalAccess =
+    user?.role === "superAdmin" || user?.role === "admin";
   const isOwner = user?.role === "owner";
 
   useEffect(() => {
+    if (!user) return;
+
     let isCancelled = false;
 
     const loadInitialUsers = async () => {
       try {
-        const result = await requestUsers();
+        const tenancyRequest = ["superAdmin", "owner"].includes(user.role)
+          ? listAllActiveTenancies()
+          : Promise.resolve([] as Tenancy[]);
+
+        const [result, tenancyItems] = await Promise.all([
+          requestUsers(),
+          tenancyRequest,
+        ]);
 
         if (!isCancelled) {
           setUsers(result);
+          setActiveTenancies(tenancyItems);
           setError("");
         }
       } catch (requestError) {
@@ -219,12 +263,24 @@ export default function UserManagementPage() {
     return () => {
       isCancelled = true;
     };
-  }, []);
+  }, [user]);
 
   const owners = useMemo(
     () => users.filter((managedUser) => managedUser.role === "owner"),
     [users],
   );
+
+  const activeTenancyByTenantId = useMemo(() => {
+    const tenancyMap = new Map<string, Tenancy>();
+
+    activeTenancies.forEach((tenancy) => {
+      const tenantId = getReferenceId(tenancy.tenantId);
+
+      if (tenantId) tenancyMap.set(tenantId, tenancy);
+    });
+
+    return tenancyMap;
+  }, [activeTenancies]);
 
   const visibleUsers = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
@@ -236,7 +292,10 @@ export default function UserManagementPage() {
         return false;
       }
 
-      if (statusFilter !== "all" && managedUser.userStatus !== statusFilter) {
+      if (
+        statusFilter !== "all" &&
+        managedUser.userStatus !== statusFilter
+      ) {
         return false;
       }
 
@@ -250,12 +309,15 @@ export default function UserManagementPage() {
 
       if (!normalizedSearch) return true;
 
+      const tenancy = activeTenancyByTenantId.get(getUserId(managedUser));
+
       const searchableValue = [
         formatName(managedUser.name),
         managedUser.email,
         managedUser.phone,
         roleLabels[managedUser.role],
         getOwnerName(managedUser.ownerId, users),
+        getTenancyLocation(tenancy),
       ]
         .filter(Boolean)
         .join(" ")
@@ -263,9 +325,20 @@ export default function UserManagementPage() {
 
       return searchableValue.includes(normalizedSearch);
     });
-  }, [isOwner, ownerFilter, roleFilter, search, statusFilter, users]);
+  }, [
+    isOwner,
+    activeTenancyByTenantId,
+    ownerFilter,
+    roleFilter,
+    search,
+    statusFilter,
+    users,
+  ]);
 
-  const totalPages = Math.max(1, Math.ceil(visibleUsers.length / itemsPerPage));
+  const totalPages = Math.max(
+    1,
+    Math.ceil(visibleUsers.length / itemsPerPage),
+  );
   const activePage = Math.min(currentPage, totalPages);
   const firstItemIndex = (activePage - 1) * itemsPerPage;
   const paginatedUsers = visibleUsers.slice(
@@ -306,7 +379,19 @@ export default function UserManagementPage() {
     setError("");
 
     try {
-      setUsers(await requestUsers());
+      const tenancyRequest = ["superAdmin", "owner"].includes(
+        user?.role ?? "",
+      )
+        ? listAllActiveTenancies()
+        : Promise.resolve([] as Tenancy[]);
+
+      const [userItems, tenancyItems] = await Promise.all([
+        requestUsers(),
+        tenancyRequest,
+      ]);
+
+      setUsers(userItems);
+      setActiveTenancies(tenancyItems);
     } catch (requestError) {
       setError(
         requestError instanceof Error
@@ -373,9 +458,9 @@ export default function UserManagementPage() {
         }),
       });
 
-      const result = (await response
-        .json()
-        .catch(() => null)) as UserMutationResponse | null;
+      const result = (await response.json().catch(() => null)) as
+        | UserMutationResponse
+        | null;
 
       if (!response.ok) {
         throw new Error(result?.message ?? "Failed to update user.");
@@ -516,16 +601,18 @@ export default function UserManagementPage() {
         },
       });
 
-      const result = (await response
-        .json()
-        .catch(() => null)) as DeleteUserResponse | null;
+      const result = (await response.json().catch(() => null)) as
+        | DeleteUserResponse
+        | null;
 
       if (!response.ok) {
         throw new Error(result?.message ?? "Failed to delete user.");
       }
 
       setUsers((currentUsers) =>
-        currentUsers.filter((currentUser) => getUserId(currentUser) !== userId),
+        currentUsers.filter(
+          (currentUser) => getUserId(currentUser) !== userId,
+        ),
       );
 
       const wasArchived = result?.data?.deletionType === "soft";
@@ -752,6 +839,7 @@ export default function UserManagementPage() {
                       <TableHeading>User</TableHeading>
                       <TableHeading>Role</TableHeading>
                       {hasGlobalAccess && <TableHeading>Owner</TableHeading>}
+                      <TableHeading>Property / Apartment</TableHeading>
                       <TableHeading>Contact</TableHeading>
                       <TableHeading>Status</TableHeading>
                       <TableHeading align="right">Actions</TableHeading>
@@ -759,122 +847,147 @@ export default function UserManagementPage() {
                   </thead>
                   <tbody className="divide-y divide-slate-800 bg-slate-900/40">
                     {paginatedUsers.map((managedUser) => {
-                      const managedUserId = getUserId(managedUser);
-                      const isCurrentUser = managedUserId === user?.id;
-                      const isDeleting = deletingUserId === managedUserId;
-                      const isUpdatingStatus =
-                        updatingStatusUserId === managedUserId;
+                    const managedUserId = getUserId(managedUser);
+                    const isCurrentUser = managedUserId === user?.id;
+                    const isDeleting = deletingUserId === managedUserId;
+                    const isUpdatingStatus =
+                      updatingStatusUserId === managedUserId;
+                    const currentTenancy =
+                      activeTenancyByTenantId.get(managedUserId);
+                    const tenancyProperty =
+                      getTenancyProperty(currentTenancy);
 
-                      return (
-                        <tr
-                          key={managedUserId}
-                          className="transition hover:bg-slate-800/70"
-                        >
-                          <td className="whitespace-nowrap px-5 py-4">
-                            <div className="flex items-center gap-3">
-                              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 text-sm font-bold text-white">
-                                {managedUser.name.firstName
-                                  .slice(0, 1)
-                                  .toUpperCase()}
-                              </div>
-                              <div>
-                                <p className="font-semibold text-slate-100">
-                                  {formatName(managedUser.name)}
-                                  {isCurrentUser && (
-                                    <span className="ml-2 text-xs font-medium text-indigo-300">
-                                      You
-                                    </span>
-                                  )}
-                                </p>
-                                <p className="text-xs text-slate-400">
-                                  {managedUser.email}
-                                </p>
-                              </div>
+                    return (
+                      <tr
+                        key={managedUserId}
+                        className="transition hover:bg-slate-800/70"
+                      >
+                        <td className="whitespace-nowrap px-5 py-4">
+                          <div className="flex items-center gap-3">
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 text-sm font-bold text-white">
+                              {managedUser.name.firstName
+                                .slice(0, 1)
+                                .toUpperCase()}
                             </div>
+                            <div>
+                              <p className="font-semibold text-slate-100">
+                                {formatName(managedUser.name)}
+                                {isCurrentUser && (
+                                  <span className="ml-2 text-xs font-medium text-indigo-300">
+                                    You
+                                  </span>
+                                )}
+                              </p>
+                              <p className="text-xs text-slate-400">
+                                {managedUser.email}
+                              </p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="whitespace-nowrap px-5 py-4">
+                          <span
+                            className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${roleBadgeClasses[managedUser.role]}`}
+                          >
+                            {roleLabels[managedUser.role]}
+                          </span>
+                        </td>
+                        {hasGlobalAccess && (
+                          <td className="whitespace-nowrap px-5 py-4 text-sm text-slate-300">
+                            {managedUser.role === "owner"
+                              ? "Self"
+                              : getOwnerName(managedUser.ownerId, users)}
                           </td>
-                          <td className="whitespace-nowrap px-5 py-4">
-                            <span
-                              className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${roleBadgeClasses[managedUser.role]}`}
-                            >
-                              {roleLabels[managedUser.role]}
-                            </span>
-                          </td>
-                          {hasGlobalAccess && (
-                            <td className="whitespace-nowrap px-5 py-4 text-sm text-slate-300">
-                              {managedUser.role === "owner"
-                                ? "Self"
-                                : getOwnerName(managedUser.ownerId, users)}
-                            </td>
+                        )}
+                        <td className="whitespace-nowrap px-5 py-4">
+                          {managedUser.role === "tenant" ? (
+                            tenancyProperty?._id ? (
+                              <Link
+                                href={`/dashboard/properties/${tenancyProperty._id}`}
+                                className="inline-flex rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-1.5 text-xs font-semibold text-emerald-300 transition hover:bg-emerald-500/20"
+                              >
+                                {getTenancyLocation(currentTenancy)}
+                              </Link>
+                            ) : (
+                              <span className="text-xs font-medium text-slate-500">
+                                Not assigned
+                              </span>
+                            )
+                          ) : (
+                            <span className="text-slate-600">—</span>
                           )}
-                          <td className="whitespace-nowrap px-5 py-4">
-                            <p className="text-sm text-slate-200">
-                              {managedUser.phone || "No phone"}
-                            </p>
-                            <p className="max-w-52 truncate text-xs text-slate-400">
-                              {managedUser.address || "No address"}
-                            </p>
-                          </td>
-                          <td className="whitespace-nowrap px-5 py-4">
-                            <select
-                              value={managedUser.userStatus}
-                              onChange={(event) =>
-                                void handleStatusChange(
-                                  managedUser,
-                                  event.target.value as UserStatus,
-                                )
-                              }
+                        </td>
+                        <td className="whitespace-nowrap px-5 py-4">
+                          <p className="text-sm text-slate-200">
+                            {managedUser.phone || "No phone"}
+                          </p>
+                          <p className="max-w-52 truncate text-xs text-slate-400">
+                            {managedUser.address || "No address"}
+                          </p>
+                        </td>
+                        <td className="whitespace-nowrap px-5 py-4">
+                          <select
+                            value={managedUser.userStatus}
+                            onChange={(event) =>
+                              void handleStatusChange(
+                                managedUser,
+                                event.target.value as UserStatus,
+                              )
+                            }
+                            disabled={
+                              isCurrentUser ||
+                              isUpdatingStatus ||
+                              Boolean(updatingStatusUserId)
+                            }
+                            aria-label={`Change status for ${formatName(managedUser.name)}`}
+                            title={
+                              isCurrentUser
+                                ? "You cannot change your own status"
+                                : "Change account status"
+                            }
+                            className={`rounded-lg border px-2.5 py-1.5 text-xs font-semibold outline-none transition focus:ring-2 focus:ring-indigo-500/30 disabled:cursor-not-allowed disabled:opacity-50 ${
+                              managedUser.userStatus === "active"
+                                ? "border-emerald-500/20 bg-emerald-500/15 text-emerald-300"
+                                : "border-red-500/20 bg-red-500/15 text-red-300"
+                            }`}
+                          >
+                            <option value="active">Active</option>
+                            <option value="inactive">Inactive</option>
+                          </select>
+                        </td>
+                        <td className="whitespace-nowrap px-5 py-4 text-right">
+                          <div className="flex justify-end gap-2">
+                            <button
+                              type="button"
+                              onClick={() => openEditModal(managedUser)}
+                              className="rounded-lg border border-slate-700 bg-slate-800 p-2 text-slate-400 transition hover:border-indigo-500/40 hover:bg-indigo-500/10 hover:text-indigo-300"
+                              aria-label={`Edit ${formatName(managedUser.name)}`}
+                              title="Edit user"
+                            >
+                              <FaEdit />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteUser(managedUser)}
                               disabled={
                                 isCurrentUser ||
-                                isUpdatingStatus ||
-                                Boolean(updatingStatusUserId)
+                                isDeleting
                               }
-                              aria-label={`Change status for ${formatName(managedUser.name)}`}
+                              className="rounded-lg border border-slate-700 bg-slate-800 p-2 text-slate-400 transition hover:border-red-500/40 hover:bg-red-500/10 hover:text-red-300 disabled:cursor-not-allowed disabled:opacity-40"
+                              aria-label={`Delete ${formatName(managedUser.name)}`}
                               title={
                                 isCurrentUser
-                                  ? "You cannot change your own status"
-                                  : "Change account status"
+                                  ? "You cannot delete your own account"
+                                  : "Delete user"
                               }
-                              className={`rounded-lg border px-2.5 py-1.5 text-xs font-semibold outline-none transition focus:ring-2 focus:ring-indigo-500/30 disabled:cursor-not-allowed disabled:opacity-50 ${
-                                managedUser.userStatus === "active"
-                                  ? "border-emerald-500/20 bg-emerald-500/15 text-emerald-300"
-                                  : "border-red-500/20 bg-red-500/15 text-red-300"
-                              }`}
                             >
-                              <option value="active">Active</option>
-                              <option value="inactive">Inactive</option>
-                            </select>
-                          </td>
-                          <td className="whitespace-nowrap px-5 py-4 text-right">
-                            <div className="flex justify-end gap-2">
-                              <button
-                                type="button"
-                                onClick={() => openEditModal(managedUser)}
-                                className="rounded-lg border border-slate-700 bg-slate-800 p-2 text-slate-400 transition hover:border-indigo-500/40 hover:bg-indigo-500/10 hover:text-indigo-300"
-                                aria-label={`Edit ${formatName(managedUser.name)}`}
-                                title="Edit user"
-                              >
-                                <FaEdit />
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleDeleteUser(managedUser)}
-                                disabled={isCurrentUser || isDeleting}
-                                className="rounded-lg border border-slate-700 bg-slate-800 p-2 text-slate-400 transition hover:border-red-500/40 hover:bg-red-500/10 hover:text-red-300 disabled:cursor-not-allowed disabled:opacity-40"
-                                aria-label={`Delete ${formatName(managedUser.name)}`}
-                                title={
-                                  isCurrentUser
-                                    ? "You cannot delete your own account"
-                                    : "Delete user"
-                                }
-                              >
-                                <FaTrashAlt
-                                  className={isDeleting ? "animate-pulse" : ""}
-                                />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      );
+                              <FaTrashAlt
+                                className={isDeleting ? "animate-pulse" : ""}
+                              />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
                     })}
                   </tbody>
                 </table>
@@ -897,15 +1010,16 @@ export default function UserManagementPage() {
                     <option value={50}>50</option>
                   </select>
                   <span className="hidden sm:inline">
-                    {firstVisibleItem}–{lastVisibleItem} of{" "}
-                    {visibleUsers.length}
+                    {firstVisibleItem}–{lastVisibleItem} of {visibleUsers.length}
                   </span>
                 </div>
 
                 <div className="flex items-center justify-between gap-3 sm:justify-end">
                   <button
                     type="button"
-                    onClick={() => setCurrentPage(Math.max(1, activePage - 1))}
+                    onClick={() =>
+                      setCurrentPage(Math.max(1, activePage - 1))
+                    }
                     disabled={activePage === 1}
                     className="rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm font-medium text-slate-300 transition hover:bg-slate-700 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
                   >
@@ -1087,6 +1201,7 @@ export default function UserManagementPage() {
           </div>
         </div>
       )}
+
     </main>
   );
 }

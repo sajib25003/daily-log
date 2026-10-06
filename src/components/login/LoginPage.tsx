@@ -112,7 +112,11 @@ export default function LoginPage() {
 
       // Tokens remain inside HttpOnly cookies; only safe user data goes to Context.
       setUser(loggedInUser);
-      router.replace("/dashboard");
+      router.replace(
+        loggedInUser.role === "tenant"
+          ? "/dashboard/my-apartment"
+          : "/dashboard",
+      );
     } catch (error) {
       setError(
         error instanceof Error
@@ -135,12 +139,16 @@ export default function LoginPage() {
             <Image
               src="/logo.png"
               alt="AHB Home Management System"
-              width={300}
-              height={120}
+              width={176}
+              height={56}
               priority
-              className="h-auto max-h-28 w-auto max-w-60 object-contain brightness-0 invert"
+              className="h-auto max-h-14 w-auto max-w-44 object-contain brightness-0 invert"
             />
           </div>
+
+          <p className="mt-3 text-sm text-slate-400 sm:text-base">
+            Home Management Software
+          </p>
         </div>
 
         <form className="space-y-5" onSubmit={handleLogin}>
