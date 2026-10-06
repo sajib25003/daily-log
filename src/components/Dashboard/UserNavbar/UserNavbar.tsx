@@ -7,18 +7,10 @@ import { useEffect, useRef, useState } from "react";
 import type { ComponentType } from "react";
 import { FaBuilding, FaCheck, FaChevronDown, FaUsers } from "react-icons/fa";
 
-type AllowedRole = "superAdmin" | "admin" | "owner";
+type AllowedRole = "superAdmin" | "owner";
 type MenuGroupId = "users" | "rent";
 
-export type DashboardSection =
-  | "create-user"
-  | "properties"
-  | "flats"
-  | "tenant-assignments"
-  | "rent-records"
-  | "payments-dues"
-  | "rent-receipts"
-  | "rent-settings";
+export type DashboardSection = "create-user" | "properties";
 
 type MenuItem = {
   id: string;
@@ -42,8 +34,8 @@ type UserNavbarProps = {
   onCreateUser?: () => void;
 };
 
-const GLOBAL_ROLES: AllowedRole[] = ["superAdmin", "admin"];
-const PROPERTY_MANAGER_ROLES: AllowedRole[] = ["superAdmin", "admin", "owner"];
+const GLOBAL_ROLES: AllowedRole[] = ["superAdmin"];
+const PROPERTY_MANAGER_ROLES: AllowedRole[] = ["superAdmin", "owner"];
 
 const menuGroups: MenuGroup[] = [
   {
@@ -76,52 +68,10 @@ const menuGroups: MenuGroup[] = [
     items: [
       {
         id: "properties",
-        label: "All Properties",
-        ownerLabel: "My Properties",
+        label: "Properties & Apartments",
+        ownerLabel: "My Properties & Apartments",
         roles: PROPERTY_MANAGER_ROLES,
-        section: "properties",
-      },
-      {
-        id: "flats",
-        label: "All Flats / Units",
-        ownerLabel: "My Flats / Units",
-        roles: PROPERTY_MANAGER_ROLES,
-        section: "flats",
-      },
-      {
-        id: "tenant-assignments",
-        label: "All Tenant Assignments",
-        ownerLabel: "My Tenant Assignments",
-        roles: PROPERTY_MANAGER_ROLES,
-        section: "tenant-assignments",
-      },
-      {
-        id: "rent-records",
-        label: "All Rent Records",
-        ownerLabel: "My Rent Records",
-        roles: PROPERTY_MANAGER_ROLES,
-        section: "rent-records",
-      },
-      {
-        id: "payments-dues",
-        label: "All Payments & Dues",
-        ownerLabel: "My Payments & Dues",
-        roles: PROPERTY_MANAGER_ROLES,
-        section: "payments-dues",
-      },
-      {
-        id: "rent-receipts",
-        label: "All Rent Receipts",
-        ownerLabel: "My Rent Receipts",
-        roles: PROPERTY_MANAGER_ROLES,
-        section: "rent-receipts",
-      },
-      {
-        id: "rent-settings",
-        label: "Rent Settings",
-        ownerLabel: "My Rent Settings",
-        roles: PROPERTY_MANAGER_ROLES,
-        section: "rent-settings",
+        href: "/dashboard/properties",
       },
     ],
   },
@@ -171,7 +121,7 @@ const UserNavbar = ({ onSectionChange, onCreateUser }: UserNavbarProps) => {
     );
   }
 
-  if (!user || !["superAdmin", "admin", "owner"].includes(user.role)) {
+  if (!user || !["superAdmin", "owner"].includes(user.role)) {
     return null;
   }
 

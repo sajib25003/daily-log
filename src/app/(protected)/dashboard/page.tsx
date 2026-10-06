@@ -60,16 +60,16 @@ export default function DashboardPage() {
             <div className="max-w-3xl">
               <div className="mb-5 flex flex-wrap items-center gap-3">
                 <span className="rounded-full border border-indigo-400/20 bg-indigo-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-indigo-300">
-                  AHB Dashboard
+                  Dashboard
                 </span>
-
+                {/* 
                 <span className="rounded-full border border-emerald-400/20 bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-300">
                   {roleLabel}
-                </span>
+                </span> */}
               </div>
 
               <h1 className="text-3xl font-bold tracking-tight text-white sm:text-4xl lg:text-5xl">
-                স্বাগতম, {displayName}
+                স্বাগতম, <span className="text-emerald-500">{displayName}</span>
               </h1>
 
               <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-400 sm:text-base">
@@ -81,16 +81,10 @@ export default function DashboardPage() {
             <div className="w-full rounded-2xl border border-slate-700/60 bg-slate-950/40 p-5 lg:w-auto lg:min-w-64">
               <p className="text-xs font-medium uppercase tracking-wider text-slate-500">
                 Signed in as
+                <span className="ml-2 rounded truncate   capitalize border-l border-r border-emerald-400 bg-emerald-500/10 px-3 py-1 text-sm font-medium text-emerald-300">
+                  {roleLabel}
+                </span>
               </p>
-
-              <p className="mt-2 truncate font-semibold text-slate-100">
-                {user?.email ?? "No email available"}
-              </p>
-
-              <div className="mt-4 flex items-center gap-2 text-sm text-emerald-400">
-                <span className="h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.8)]" />
-                Account active
-              </div>
             </div>
           </div>
         </section>
