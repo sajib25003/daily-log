@@ -326,7 +326,7 @@ const NavBar = () => {
 
               {/* Logout */}
               <div className="border-t border-slate-700/60 p-2">
-                <LogoutButton />
+                <LogoutButton onLogoutSuccess={() => setOpenMenu(null)} />
               </div>
             </div>
           )}
