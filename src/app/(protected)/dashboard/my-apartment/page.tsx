@@ -131,6 +131,14 @@ export default function MyApartmentPage() {
 
   const apartment = tenancy ? getApartment(tenancy) : undefined;
   const property = tenancy ? getProperty(tenancy) : undefined;
+  const fixedApartmentCharges = (apartment?.chargeSettings ?? []).filter(
+    (setting) =>
+      typeof setting.categoryId === 'object' &&
+      setting.categoryId.isActive &&
+      setting.categoryId.defaultMode === 'fixed' &&
+      setting.amount !== null &&
+      setting.amount !== undefined,
+  );
 
   return (
     <main className="min-h-screen bg-linear-to-br from-slate-950 via-slate-900 to-slate-950 px-4 py-7 text-slate-100 sm:px-6 lg:px-8">
@@ -256,6 +264,21 @@ export default function MyApartmentPage() {
                     value={money.format(tenancy.rentTerms.baseRent)}
                     strong
                   />
+                  {fixedApartmentCharges.map((setting) => (
+                    <DetailLine
+                      key={
+                        typeof setting.categoryId === 'object'
+                          ? setting.categoryId._id
+                          : setting.categoryId
+                      }
+                      label={
+                        typeof setting.categoryId === 'object'
+                          ? setting.categoryId.name
+                          : 'Fixed charge'
+                      }
+                      value={money.format(setting.amount ?? 0)}
+                    />
+                  ))}
                   <DetailLine
                     label="Monthly due day"
                     value={`Day ${tenancy.rentTerms.dueDay}`}
