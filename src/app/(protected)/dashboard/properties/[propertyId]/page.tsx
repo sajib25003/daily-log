@@ -1,6 +1,10 @@
 'use client';
 
 import ManagementModal from '@/components/property/ManagementModal';
+import {
+  ApartmentBillingControls,
+  PropertyElectricityButton,
+} from '@/components/property/RentElectricityControls';
 import { useAuth } from '@/context/AuthContext';
 import {
   createApartment,
@@ -628,6 +632,18 @@ function PropertyApartmentsContent() {
             </div>
 
             <div className="flex flex-wrap gap-2">
+              <PropertyElectricityButton
+                property={property}
+                onUpdated={(updatedProperty) =>
+                  setProperty((currentProperty) => ({
+                    ...updatedProperty,
+                    apartmentCount:
+                      currentProperty?.apartmentCount ??
+                      updatedProperty.apartmentCount,
+                  }))
+                }
+              />
+
               <button
                 type="button"
                 onClick={refreshData}
@@ -807,6 +823,63 @@ function PropertyApartmentsContent() {
                   </div>
 
                   <div className="mt-auto pt-4">
+                    <div className="mb-3 space-y-1.5 rounded-xl border border-slate-800 bg-slate-950/35 px-3 py-2.5 text-[11px] text-slate-400">
+                      <p className="flex items-center justify-between gap-2">
+                        <span>Rent</span>
+                        <span className="font-semibold text-slate-300">
+                          {currentTenancy?.rentTerms
+                            ? `৳${currentTenancy.rentTerms.baseRent.toLocaleString('en-BD')}`
+                            : isOccupied
+                              ? 'Not configured'
+                              : 'No tenancy'}
+                        </span>
+                      </p>
+                      <p className="flex items-center justify-between gap-2">
+                        <span>Electricity</span>
+                        <span className="font-semibold capitalize text-slate-300">
+                          {apartment.electricityConfig?.billingType
+                            ?.replace(/([A-Z])/g, ' $1')
+                            .trim() ?? 'Not configured'}
+                        </span>
+                      </p>
+                    </div>
+
+                    <ApartmentBillingControls
+                      apartment={apartment}
+                      property={property}
+                      onApartmentUpdated={(updatedApartment) =>
+                        setApartments((currentApartments) =>
+                          currentApartments.map((item) =>
+                            item._id === updatedApartment._id
+                              ? {
+                                  ...item,
+                                  ...updatedApartment,
+                                  currentTenancy:
+                                    updatedApartment.currentTenancy ??
+                                    item.currentTenancy,
+                                }
+                              : item,
+                          ),
+                        )
+                      }
+                      onTenancyUpdated={(updatedTenancy) => {
+                        setApartments((currentApartments) =>
+                          currentApartments.map((item) =>
+                            item._id === apartment._id
+                              ? { ...item, currentTenancy: updatedTenancy }
+                              : item,
+                          ),
+                        );
+                        setActiveTenancies((current) =>
+                          current.map((item) =>
+                            item._id === updatedTenancy._id
+                              ? updatedTenancy
+                              : item,
+                          ),
+                        );
+                      }}
+                    />
+
                     <button
                       type="button"
                       onClick={() =>
@@ -814,7 +887,7 @@ function PropertyApartmentsContent() {
                           ? openMoveOut(apartment)
                           : openAssignTenant(apartment)
                       }
-                      className={`inline-flex w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition ${
+                      className={`mt-2 inline-flex w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition ${
                         isOccupied
                           ? 'border border-amber-500/25 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20'
                           : 'bg-indigo-600 text-white hover:bg-indigo-500'

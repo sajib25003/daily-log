@@ -7,10 +7,13 @@ import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import {
   FaBuilding,
+  FaBolt,
   FaCalendarAlt,
+  FaClock,
   FaDoorOpen,
   FaHome,
   FaMapMarkerAlt,
+  FaMoneyBillWave,
   FaSpinner,
   FaSyncAlt,
 } from 'react-icons/fa';
@@ -32,6 +35,19 @@ const getApartment = (tenancy: Tenancy) =>
 
 const getProperty = (tenancy: Tenancy) =>
   typeof tenancy.propertyId === 'object' ? tenancy.propertyId : undefined;
+
+const money = new Intl.NumberFormat('en-BD', {
+  style: 'currency',
+  currency: 'BDT',
+  maximumFractionDigits: 2,
+});
+
+const humanize = (value?: string | null) =>
+  value
+    ? value
+        .replace(/([A-Z])/g, ' $1')
+        .replace(/^./, (text) => text.toUpperCase())
+    : 'Not configured';
 
 export default function MyApartmentPage() {
   const { user, isAuthLoading } = useAuth();
@@ -164,6 +180,7 @@ export default function MyApartmentPage() {
             </p>
           </section>
         ) : (
+          <>
           <section className="mt-6 overflow-hidden rounded-3xl border border-slate-700/70 bg-slate-900/80 shadow-2xl">
             <div className="border-b border-slate-700/60 bg-emerald-500/5 px-6 py-5 sm:px-8">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -217,9 +234,155 @@ export default function MyApartmentPage() {
               )}
             </div>
           </section>
+
+          <div className="mt-6 grid gap-6 lg:grid-cols-2">
+            <section className="rounded-3xl border border-emerald-500/20 bg-slate-900/80 p-6 shadow-xl">
+              <div className="flex items-center gap-3">
+                <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-300">
+                  <FaMoneyBillWave />
+                </span>
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-wider text-emerald-400">
+                    Current agreement
+                  </p>
+                  <h2 className="mt-1 text-xl font-bold">Rent Terms</h2>
+                </div>
+              </div>
+
+              {tenancy.rentTerms ? (
+                <div className="mt-5 space-y-3 text-sm">
+                  <DetailLine
+                    label="Base rent"
+                    value={money.format(tenancy.rentTerms.baseRent)}
+                    strong
+                  />
+                  <DetailLine
+                    label="Monthly due day"
+                    value={`Day ${tenancy.rentTerms.dueDay}`}
+                  />
+                  <DetailLine
+                    label="Effective from"
+                    value={formatDate(tenancy.rentTerms.effectiveFrom)}
+                  />
+                  <DetailLine
+                    label="Notice period"
+                    value={`${tenancy.rentTerms.noticePeriod.value} ${tenancy.rentTerms.noticePeriod.unit}`}
+                  />
+                  <DetailLine
+                    label="Security deposit"
+                    value={
+                      tenancy.rentTerms.securityDeposit === null ||
+                      tenancy.rentTerms.securityDeposit === undefined
+                        ? '—'
+                        : money.format(tenancy.rentTerms.securityDeposit)
+                    }
+                  />
+                  <DetailLine
+                    label="Advance"
+                    value={
+                      tenancy.rentTerms.advanceAmount === null ||
+                      tenancy.rentTerms.advanceAmount === undefined
+                        ? '—'
+                        : money.format(tenancy.rentTerms.advanceAmount)
+                    }
+                  />
+
+                  {tenancy.rentTerms.rentRevision.nextRevisionDate && (
+                    <div className="mt-4 flex items-start gap-3 rounded-xl border border-amber-500/20 bg-amber-500/5 p-3 text-amber-200">
+                      <FaClock className="mt-0.5 shrink-0" />
+                      <div>
+                        <p className="font-semibold">Next rent review</p>
+                        <p className="mt-1 text-xs text-amber-300/80">
+                          {formatDate(
+                            tenancy.rentTerms.rentRevision.nextRevisionDate,
+                          )}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {tenancy.rentTerms.note && (
+                    <p className="rounded-xl bg-slate-950/50 p-3 leading-6 text-slate-400">
+                      {tenancy.rentTerms.note}
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <p className="mt-5 text-sm leading-6 text-slate-400">
+                  Your owner has not configured the rent terms yet.
+                </p>
+              )}
+            </section>
+
+            <section className="rounded-3xl border border-amber-500/20 bg-slate-900/80 p-6 shadow-xl">
+              <div className="flex items-center gap-3">
+                <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-amber-500/15 text-amber-300">
+                  <FaBolt />
+                </span>
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-wider text-amber-400">
+                    Utility setup
+                  </p>
+                  <h2 className="mt-1 text-xl font-bold">Electricity</h2>
+                </div>
+              </div>
+
+              <div className="mt-5 space-y-3 text-sm">
+                <DetailLine
+                  label="Billing type"
+                  value={humanize(apartment?.electricityConfig?.billingType)}
+                />
+                <DetailLine
+                  label="Payment"
+                  value={humanize(
+                    apartment?.electricityConfig?.paymentResponsibility,
+                  )}
+                />
+                <DetailLine
+                  label="Meter number"
+                  value={apartment?.electricityConfig?.meterNumber || '—'}
+                />
+                <DetailLine
+                  label="Property account"
+                  value={property?.electricitySettings?.accountNumber || '—'}
+                />
+                {apartment?.electricityConfig?.note && (
+                  <p className="rounded-xl bg-slate-950/50 p-3 leading-6 text-slate-400">
+                    {apartment.electricityConfig.note}
+                  </p>
+                )}
+              </div>
+            </section>
+          </div>
+          </>
         )}
       </div>
     </main>
+  );
+}
+
+function DetailLine({
+  label,
+  value,
+  strong = false,
+}: {
+  label: string;
+  value: string;
+  strong?: boolean;
+}) {
+  return (
+    <div className="flex items-start justify-between gap-4 border-b border-slate-800 pb-3 last:border-0 last:pb-0">
+      <span className="text-slate-500">{label}</span>
+      <span
+        className={`text-right ${
+          strong
+            ? 'font-bold text-emerald-300'
+            : 'font-semibold text-slate-200'
+        }`}
+      >
+        {value}
+      </span>
+    </div>
   );
 }
 

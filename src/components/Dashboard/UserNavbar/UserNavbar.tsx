@@ -4,7 +4,14 @@ import { useAuth } from "@/context/AuthContext";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { IconType } from "react-icons";
-import { FaBuilding, FaHome, FaUserPlus, FaUsers } from "react-icons/fa";
+import {
+  FaBolt,
+  FaBuilding,
+  FaHome,
+  FaReceipt,
+  FaUserPlus,
+  FaUsers,
+} from "react-icons/fa";
 
 type AllowedRole = "superAdmin" | "owner" | "tenant";
 
@@ -43,6 +50,22 @@ const navigationItems: NavigationItem[] = [
     ownerLabel: "My Properties & Apartments",
     href: "/dashboard/properties",
     icon: FaBuilding,
+    roles: MANAGEMENT_ROLES,
+  },
+  {
+    id: "rent-settings",
+    label: "Rent Settings",
+    ownerLabel: "Rent Settings",
+    href: "/dashboard/rent-settings",
+    icon: FaReceipt,
+    roles: MANAGEMENT_ROLES,
+  },
+  {
+    id: "electricity",
+    label: "Electricity",
+    ownerLabel: "Electricity",
+    href: "/dashboard/electricity",
+    icon: FaBolt,
     roles: MANAGEMENT_ROLES,
   },
   {
