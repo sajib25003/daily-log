@@ -11,7 +11,13 @@ type LogoutResponse = {
   message?: string;
 };
 
-export default function LogoutButton() {
+type LogoutButtonProps = {
+  onLogoutSuccess?: () => void;
+};
+
+export default function LogoutButton({
+  onLogoutSuccess,
+}: LogoutButtonProps) {
   const router = useRouter();
   const { setUser } = useAuth();
 
@@ -43,6 +49,7 @@ export default function LogoutButton() {
 
       // Access and refresh tokens are HttpOnly cookies.
       // The backend logout endpoint clears them; the frontend only resets user state.
+      onLogoutSuccess?.();
       setUser(null);
       router.replace("/");
     } catch (error) {
