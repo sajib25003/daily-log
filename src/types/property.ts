@@ -55,7 +55,6 @@ export type ElectricityPaymentResponsibility =
 export type ApartmentElectricityConfig = {
   billingType: ApartmentElectricityBillingType;
   paymentResponsibility: ElectricityPaymentResponsibility;
-  providerOverrideId?: string | ElectricityProviderReference | null;
   meterNumber?: string | null;
   note?: string | null;
   updatedAt?: string;
