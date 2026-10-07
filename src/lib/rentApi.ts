@@ -109,7 +109,6 @@ export const createChargeCategory = (payload: {
   name: string;
   code?: string;
   defaultMode: ChargeCalculationMode;
-  defaultAmount?: number | null;
   sortOrder?: number;
 }) =>
   request<ChargeCategory>('/billing/charge-categories', {
@@ -122,7 +121,7 @@ export const updateChargeCategory = (
   payload: Partial<
     Pick<
       ChargeCategory,
-      'name' | 'defaultMode' | 'defaultAmount' | 'isActive' | 'sortOrder'
+      'name' | 'defaultMode' | 'isActive' | 'sortOrder'
     >
   >,
 ) =>
@@ -245,4 +244,13 @@ export const updateApartmentElectricityConfig = (
   request<Apartment>(`/apartments/${apartmentId}/electricity-config`, {
     method: 'PATCH',
     body: JSON.stringify({ electricityConfig: payload }),
+  });
+
+export const updateApartmentChargeSettings = (
+  apartmentId: string,
+  charges: Array<{ categoryId: string; amount: number | null }>,
+) =>
+  request<Apartment>(`/apartments/${apartmentId}/charge-settings`, {
+    method: 'PATCH',
+    body: JSON.stringify({ chargeSettings: { charges } }),
   });
