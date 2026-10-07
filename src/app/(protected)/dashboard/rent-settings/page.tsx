@@ -43,7 +43,6 @@ type CategoryForm = {
   name: string;
   code: string;
   defaultMode: ChargeCalculationMode;
-  defaultAmount: string;
   sortOrder: string;
 };
 
@@ -51,18 +50,11 @@ const emptyForm: CategoryForm = {
   name: '',
   code: '',
   defaultMode: 'fixed',
-  defaultAmount: '',
   sortOrder: '100',
 };
 
 const inputClassName =
   'w-full rounded-xl border border-slate-700 bg-slate-950/70 px-4 py-3 text-sm text-slate-100 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 disabled:opacity-60';
-
-const money = new Intl.NumberFormat('en-BD', {
-  style: 'currency',
-  currency: 'BDT',
-  maximumFractionDigits: 2,
-});
 
 export default function RentSettingsPage() {
   const { user, isAuthLoading } = useAuth();
@@ -221,10 +213,6 @@ export default function RentSettingsPage() {
       name: category.name,
       code: category.code,
       defaultMode: category.defaultMode,
-      defaultAmount:
-        category.defaultAmount === null || category.defaultAmount === undefined
-          ? ''
-          : String(category.defaultAmount),
       sortOrder: String(category.sortOrder),
     });
     setModalError('');
@@ -247,14 +235,10 @@ export default function RentSettingsPage() {
     setModalError('');
 
     try {
-      const defaultAmount =
-        form.defaultAmount.trim() === '' ? null : Number(form.defaultAmount);
-
       if (editing) {
         const updated = await updateChargeCategory(editing._id, {
           name: form.name.trim(),
           defaultMode: form.defaultMode,
-          defaultAmount,
           sortOrder: Number(form.sortOrder),
         });
         setCategories((current) =>
@@ -268,7 +252,6 @@ export default function RentSettingsPage() {
           name: form.name.trim(),
           code: form.code.trim() || undefined,
           defaultMode: form.defaultMode,
-          defaultAmount,
           sortOrder: Number(form.sortOrder),
         });
         setCategories((current) => [...current, created]);
@@ -335,8 +318,9 @@ export default function RentSettingsPage() {
               <p className="text-sm font-semibold text-indigo-300">Rent configuration</p>
               <h1 className="mt-2 text-3xl font-bold">Charge Categories</h1>
               <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300">
-                Set which charges are fixed, monthly variable, included in rent,
-                tenant-managed or not applicable.
+                Choose the categories and calculation modes used by this
+                property. Fixed amounts are configured separately for each
+                apartment.
               </p>
             </div>
 
@@ -400,16 +384,15 @@ export default function RentSettingsPage() {
             <div className="px-6 py-14 text-center text-sm text-slate-400">{!propertyId ? 'Select a property to load rent settings.' : 'No charge categories found.'}</div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[780px] text-left text-sm">
+              <table className="w-full min-w-[680px] text-left text-sm">
                 <thead className="bg-slate-950/50 text-xs uppercase tracking-wider text-slate-500">
-                  <tr><th className="px-5 py-3">Charge</th><th className="px-5 py-3">Mode</th><th className="px-5 py-3">Default amount</th><th className="px-5 py-3">Status</th><th className="px-5 py-3 text-right">Actions</th></tr>
+                  <tr><th className="px-5 py-3">Charge</th><th className="px-5 py-3">Mode</th><th className="px-5 py-3">Status</th><th className="px-5 py-3 text-right">Actions</th></tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800">
                   {categories.map((category) => (
                     <tr key={category._id} className={!category.isActive ? 'opacity-55' : ''}>
                       <td className="px-5 py-4"><p className="font-semibold text-slate-100">{category.name}</p><p className="mt-1 text-xs text-slate-500">{category.code}{category.isSystemDefault ? ' · System default' : ' · Custom'}</p></td>
                       <td className="px-5 py-4 text-slate-300">{MODE_OPTIONS.find((option) => option.value === category.defaultMode)?.label}</td>
-                      <td className="px-5 py-4 text-slate-300">{category.defaultAmount === null || category.defaultAmount === undefined ? 'Set during billing' : money.format(category.defaultAmount)}</td>
                       <td className="px-5 py-4"><span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${category.isActive ? 'bg-emerald-500/15 text-emerald-300' : 'bg-slate-700 text-slate-400'}`}>{category.isActive ? 'Active' : 'Inactive'}</span></td>
                       <td className="px-5 py-4"><div className="flex justify-end gap-2"><button type="button" onClick={() => openEdit(category)} className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-700 bg-slate-800 text-slate-300 hover:text-white" aria-label={`Edit ${category.name}`}><FaEdit /></button><button type="button" onClick={() => void toggleStatus(category)} className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-700 bg-slate-800 text-slate-300 hover:text-white" aria-label={`${category.isActive ? 'Deactivate' : 'Activate'} ${category.name}`}>{category.isActive ? <FaToggleOn className="text-emerald-400" /> : <FaToggleOff />}</button></div></td>
                     </tr>
@@ -426,7 +409,7 @@ export default function RentSettingsPage() {
           <label className="block"><span className="mb-2 block text-sm font-medium text-slate-300">Name *</span><input required value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} className={inputClassName} /></label>
           {!editing && <label className="block"><span className="mb-2 block text-sm font-medium text-slate-300">Code</span><input value={form.code} onChange={(event) => setForm((current) => ({ ...current, code: event.target.value }))} placeholder="Generated from name if blank" className={inputClassName} /></label>}
           <label className="block"><span className="mb-2 block text-sm font-medium text-slate-300">Calculation mode *</span><select value={form.defaultMode} onChange={(event) => setForm((current) => ({ ...current, defaultMode: event.target.value as ChargeCalculationMode }))} className={inputClassName}>{MODE_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
-          <div className="grid gap-4 sm:grid-cols-2"><label className="block"><span className="mb-2 block text-sm font-medium text-slate-300">Default amount</span><input type="number" min="0" step="0.01" value={form.defaultAmount} onChange={(event) => setForm((current) => ({ ...current, defaultAmount: event.target.value }))} placeholder="Optional" className={inputClassName} /></label><label className="block"><span className="mb-2 block text-sm font-medium text-slate-300">Sort order</span><input type="number" min="0" value={form.sortOrder} onChange={(event) => setForm((current) => ({ ...current, sortOrder: event.target.value }))} className={inputClassName} /></label></div>
+          <label className="block"><span className="mb-2 block text-sm font-medium text-slate-300">Sort order</span><input type="number" min="0" value={form.sortOrder} onChange={(event) => setForm((current) => ({ ...current, sortOrder: event.target.value }))} className={inputClassName} /></label>
           {modalError && <div role="alert" className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">{modalError}</div>}
           <div className="flex justify-end gap-3"><button type="button" onClick={closeModal} className="rounded-xl border border-slate-700 px-4 py-2.5 text-sm font-semibold text-slate-300">Cancel</button><button type="submit" disabled={isSaving} className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60">{isSaving && <FaSpinner className="animate-spin" />}{editing ? 'Save changes' : 'Create category'}</button></div>
         </form>
