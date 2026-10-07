@@ -60,6 +60,21 @@ export type ApartmentElectricityConfig = {
   updatedAt?: string;
 };
 
+export type ApartmentChargeSetting = {
+  categoryId:
+    | string
+    | {
+        _id: string;
+        name: string;
+        code: string;
+        defaultMode: import('@/types/billing').ChargeCalculationMode;
+        isActive: boolean;
+        sortOrder: number;
+      };
+  amount?: number | null;
+  updatedAt?: string;
+};
+
 export type Property = {
   _id: string;
   name: string;
@@ -83,6 +98,7 @@ export type Apartment = {
   updatedAt?: string;
   currentTenancy?: Tenancy | null;
   electricityConfig?: ApartmentElectricityConfig | null;
+  chargeSettings?: ApartmentChargeSetting[];
 };
 
 export type NoticePeriodUnit = 'days' | 'months';
@@ -145,6 +161,7 @@ export type Tenancy = {
         | 'propertyId'
         | 'note'
         | 'electricityConfig'
+        | 'chargeSettings'
       >;
   propertyId:
     | string
