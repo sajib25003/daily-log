@@ -90,7 +90,7 @@ export default function RentSettingsPage() {
 
     const result = await listChargeCategories({
       ...(isSuperAdmin ? { ownerId } : {}),
-      includeInactive: isSuperAdmin,
+      includeInactive: true,
     });
     setCategories(result);
   }, [canManage, isSuperAdmin, ownerId, user]);
