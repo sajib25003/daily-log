@@ -18,7 +18,6 @@ export type ChargeCategory = {
   name: string;
   code: string;
   defaultMode: ChargeCalculationMode;
-  defaultAmount?: number | null;
   isSystemDefault: boolean;
   isActive: boolean;
   sortOrder: number;
