@@ -333,6 +333,15 @@ export default function MyApartmentPage() {
                   value={humanize(apartment?.electricityConfig?.billingType)}
                 />
                 <DetailLine
+                  label="Provider"
+                  value={
+                    property?.electricitySettings?.providerId &&
+                    typeof property.electricitySettings.providerId === 'object'
+                      ? property.electricitySettings.providerId.name
+                      : 'Not configured'
+                  }
+                />
+                <DetailLine
                   label="Payment"
                   value={humanize(
                     apartment?.electricityConfig?.paymentResponsibility,
