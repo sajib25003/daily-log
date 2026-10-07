@@ -179,8 +179,6 @@ export function ApartmentBillingControls({
   const tenancy = apartment.currentTenancy;
   const [electricityOpen, setElectricityOpen] = useState(false);
   const [rentOpen, setRentOpen] = useState(false);
-  const [providers, setProviders] = useState<ElectricityProvider[]>([]);
-  const [isLoadingProviders, setIsLoadingProviders] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
   const [electricityForm, setElectricityForm] = useState({
@@ -190,9 +188,6 @@ export function ApartmentBillingControls({
     paymentResponsibility:
       apartment.electricityConfig?.paymentResponsibility ??
       ('ownerCollects' as ElectricityPaymentResponsibility),
-    providerOverrideId: getDocumentId(
-      apartment.electricityConfig?.providerOverrideId,
-    ),
     meterNumber: apartment.electricityConfig?.meterNumber ?? '',
     note: apartment.electricityConfig?.note ?? '',
   });
@@ -200,32 +195,16 @@ export function ApartmentBillingControls({
     tenancy ? createRentForm(tenancy) : null,
   );
 
-  const openElectricity = async () => {
+  const openElectricity = () => {
     setError('');
     setElectricityForm({
       billingType: apartment.electricityConfig?.billingType ?? 'postpaid',
       paymentResponsibility:
         apartment.electricityConfig?.paymentResponsibility ?? 'ownerCollects',
-      providerOverrideId: getDocumentId(
-        apartment.electricityConfig?.providerOverrideId,
-      ),
       meterNumber: apartment.electricityConfig?.meterNumber ?? '',
       note: apartment.electricityConfig?.note ?? '',
     });
     setElectricityOpen(true);
-    if (providers.length > 0) return;
-    setIsLoadingProviders(true);
-    try {
-      setProviders(await listElectricityProviders());
-    } catch (requestError) {
-      setError(
-        requestError instanceof Error
-          ? requestError.message
-          : 'Failed to load electricity providers.',
-      );
-    } finally {
-      setIsLoadingProviders(false);
-    }
   };
 
   const submitElectricity = async (event: FormEvent<HTMLFormElement>) => {
@@ -236,7 +215,6 @@ export function ApartmentBillingControls({
       const updated = await updateApartmentElectricityConfig(apartment._id, {
         billingType: electricityForm.billingType,
         paymentResponsibility: electricityForm.paymentResponsibility,
-        providerOverrideId: electricityForm.providerOverrideId || null,
         meterNumber: electricityForm.meterNumber.trim() || null,
         note: electricityForm.note.trim() || null,
       });
@@ -289,21 +267,18 @@ export function ApartmentBillingControls({
   return (
     <>
       <div className="grid grid-cols-2 gap-2">
-        <button type="button" onClick={() => void openElectricity()} className="inline-flex items-center justify-center gap-2 rounded-xl border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs font-semibold text-amber-300 hover:bg-amber-500/20"><FaBolt /> Electricity</button>
+        <button type="button" onClick={openElectricity} className="inline-flex items-center justify-center gap-2 rounded-xl border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs font-semibold text-amber-300 hover:bg-amber-500/20"><FaBolt /> Electricity</button>
         <button type="button" onClick={openRent} disabled={!tenancy} className="inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-xs font-semibold text-emerald-300 hover:bg-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-35"><FaMoneyBillWave /> Rent Terms</button>
       </div>
 
       <ManagementModal open={electricityOpen} title={`Electricity · ${apartment.apartmentNumber}`} onClose={() => !isSaving && setElectricityOpen(false)} disableClose={isSaving}>
         <form onSubmit={submitElectricity} className="space-y-5 p-5">
-          <div className="rounded-xl border border-slate-700 bg-slate-950/40 p-4"><p className="font-semibold">{property.name} / {apartment.apartmentNumber}</p><p className="mt-1 text-xs text-slate-500">Provider override is optional; otherwise the property provider is used.</p></div>
-          {isLoadingProviders ? <div className="flex justify-center py-8"><FaSpinner className="animate-spin text-emerald-400" /></div> : <>
+          <div className="rounded-xl border border-slate-700 bg-slate-950/40 p-4"><p className="font-semibold">{property.name} / {apartment.apartmentNumber}</p><p className="mt-1 text-xs text-slate-500">Electricity provider is inherited from the property.</p></div>
             <label className="block"><span className="mb-2 block text-sm text-slate-300">Billing type *</span><select value={electricityForm.billingType} onChange={(event) => setElectricityForm((current) => ({ ...current, billingType: event.target.value as ApartmentElectricityBillingType }))} className={inputClassName}><option value="postpaid">Postpaid</option><option value="prepaid">Prepaid recharge</option><option value="submeter">Submeter</option><option value="includedInRent">Included in rent</option><option value="notApplicable">Not applicable</option></select></label>
             <label className="block"><span className="mb-2 block text-sm text-slate-300">Payment responsibility</span><select disabled={billingTypeDisablesResponsibility} value={billingTypeDisablesResponsibility ? 'notApplicable' : electricityForm.paymentResponsibility} onChange={(event) => setElectricityForm((current) => ({ ...current, paymentResponsibility: event.target.value as ElectricityPaymentResponsibility }))} className={inputClassName}><option value="ownerCollects">Owner collects bill</option><option value="tenantPaysDirectly">Tenant pays directly</option><option value="notApplicable">Not applicable</option></select></label>
-            <label className="block"><span className="mb-2 block text-sm text-slate-300">Provider override</span><select value={electricityForm.providerOverrideId} onChange={(event) => setElectricityForm((current) => ({ ...current, providerOverrideId: event.target.value }))} className={inputClassName}><option value="">Use property provider</option>{providers.map((provider) => <option key={provider._id} value={provider._id}>{provider.name}</option>)}</select></label>
             <label className="block"><span className="mb-2 block text-sm text-slate-300">Meter number</span><input value={electricityForm.meterNumber} onChange={(event) => setElectricityForm((current) => ({ ...current, meterNumber: event.target.value }))} className={inputClassName} /></label>
             <label className="block"><span className="mb-2 block text-sm text-slate-300">Note</span><textarea rows={3} value={electricityForm.note} onChange={(event) => setElectricityForm((current) => ({ ...current, note: event.target.value }))} className={`${inputClassName} resize-none`} /></label>
-          </>}
-          <ModalError message={error} /><ModalActions saving={isSaving} onCancel={() => setElectricityOpen(false)} label="Save electricity setup" disabled={isLoadingProviders} />
+          <ModalError message={error} /><ModalActions saving={isSaving} onCancel={() => setElectricityOpen(false)} label="Save electricity setup" />
         </form>
       </ManagementModal>
 
@@ -342,4 +317,3 @@ function ModalActions({ saving, onCancel, label, disabled = false }: { saving: b
 function formatDate(value: string) {
   return new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(value));
 }
-
