@@ -2,7 +2,7 @@
 
 import ManagementModal from '@/components/property/ManagementModal';
 import { useAuth } from '@/context/AuthContext';
-import { listActiveOwners } from '@/lib/propertyApi';
+import { listActiveOwners, listProperties } from '@/lib/propertyApi';
 import {
   createChargeCategory,
   listChargeCategories,
@@ -13,8 +13,8 @@ import type {
   ChargeCategory,
 } from '@/types/billing';
 import { formatUserName, getDocumentId } from '@/types/property';
-import type { UserReference } from '@/types/property';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import type { Property, UserReference } from '@/types/property';
+import { useEffect, useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
 import {
   FaEdit,
@@ -71,6 +71,8 @@ export default function RentSettingsPage() {
 
   const [owners, setOwners] = useState<UserReference[]>([]);
   const [ownerId, setOwnerId] = useState('');
+  const [properties, setProperties] = useState<Property[]>([]);
+  const [propertyId, setPropertyId] = useState('');
   const [categories, setCategories] = useState<ChargeCategory[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -81,35 +83,28 @@ export default function RentSettingsPage() {
   const [form, setForm] = useState<CategoryForm>(emptyForm);
   const [isSaving, setIsSaving] = useState(false);
 
-  const loadCategories = useCallback(async () => {
-    if (!user || !canManage) return;
-    if (isSuperAdmin && !ownerId) {
-      setCategories([]);
-      return;
-    }
+  const loadCategories = async () => {
+    if (!propertyId) return;
 
     const result = await listChargeCategories({
-      ...(isSuperAdmin ? { ownerId } : {}),
+      propertyId,
       includeInactive: true,
     });
     setCategories(result);
-  }, [canManage, isSuperAdmin, ownerId, user]);
+  };
 
   useEffect(() => {
-    if (!user || !canManage) return;
+    if (!user || !canManage || !isSuperAdmin) return;
 
     let cancelled = false;
 
     const initialize = async () => {
       try {
-        if (isSuperAdmin) {
-          const result = await listActiveOwners();
-          if (cancelled) return;
-          setOwners(result);
-          setOwnerId((current) => current || getDocumentId(result[0]));
-        } else {
-          await loadCategories();
-        }
+        const result = await listActiveOwners();
+        if (cancelled) return;
+        setOwners(result);
+        setOwnerId((current) => current || getDocumentId(result[0]));
+        if (result.length === 0) setIsLoading(false);
       } catch (requestError) {
         if (!cancelled) {
           setError(
@@ -118,8 +113,6 @@ export default function RentSettingsPage() {
               : 'Failed to load rent settings.',
           );
         }
-      } finally {
-        if (!cancelled) setIsLoading(false);
       }
     };
 
@@ -127,13 +120,49 @@ export default function RentSettingsPage() {
     return () => {
       cancelled = true;
     };
-  }, [canManage, isSuperAdmin, loadCategories, user]);
+  }, [canManage, isSuperAdmin, user]);
 
   useEffect(() => {
-    if (!isSuperAdmin || !ownerId) return;
+    if (!user || !canManage || (isSuperAdmin && !ownerId)) return;
 
     let cancelled = false;
-    listChargeCategories({ ownerId, includeInactive: true })
+    listProperties(isSuperAdmin ? { ownerId } : undefined)
+      .then((result) => {
+        if (!cancelled) {
+          setProperties(result);
+          setPropertyId((current) =>
+            result.some((property) => property._id === current)
+              ? current
+              : (result[0]?._id ?? ''),
+          );
+          if (result.length === 0) {
+            setCategories([]);
+            setIsLoading(false);
+          }
+          setError('');
+        }
+      })
+      .catch((requestError: unknown) => {
+        if (!cancelled) {
+          setError(
+            requestError instanceof Error
+              ? requestError.message
+              : 'Failed to load properties.',
+          );
+          setIsLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [canManage, isSuperAdmin, ownerId, user]);
+
+  useEffect(() => {
+    if (!propertyId) return;
+
+    let cancelled = false;
+    listChargeCategories({ propertyId, includeInactive: true })
       .then((result) => {
         if (!cancelled) {
           setCategories(result);
@@ -156,7 +185,7 @@ export default function RentSettingsPage() {
     return () => {
       cancelled = true;
     };
-  }, [isSuperAdmin, ownerId]);
+  }, [propertyId]);
 
   const activeCount = useMemo(
     () => categories.filter((category) => category.isActive).length,
@@ -235,7 +264,7 @@ export default function RentSettingsPage() {
         );
       } else {
         const created = await createChargeCategory({
-          ...(isSuperAdmin ? { ownerId } : {}),
+          propertyId,
           name: form.name.trim(),
           code: form.code.trim() || undefined,
           defaultMode: form.defaultMode,
@@ -312,21 +341,22 @@ export default function RentSettingsPage() {
             </div>
 
             <div className="flex flex-wrap gap-2">
-              <button type="button" onClick={refresh} disabled={isRefreshing || (isSuperAdmin && !ownerId)} className="inline-flex items-center gap-2 rounded-xl border border-slate-600 bg-slate-800 px-4 py-2.5 text-sm font-semibold hover:bg-slate-700 disabled:opacity-50">
+              <button type="button" onClick={refresh} disabled={isRefreshing || !propertyId} className="inline-flex items-center gap-2 rounded-xl border border-slate-600 bg-slate-800 px-4 py-2.5 text-sm font-semibold hover:bg-slate-700 disabled:opacity-50">
                 <FaSyncAlt className={isRefreshing ? 'animate-spin' : ''} /> Refresh
               </button>
-              <button type="button" onClick={openCreate} disabled={isSuperAdmin && !ownerId} className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold hover:bg-emerald-500 disabled:opacity-50">
+              <button type="button" onClick={openCreate} disabled={!propertyId} className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold hover:bg-emerald-500 disabled:opacity-50">
                 <FaPlus /> Add category
               </button>
             </div>
           </div>
         </section>
 
-        {isSuperAdmin && (
-          <section className="mt-5 rounded-2xl border border-slate-700/60 bg-slate-900/70 p-4">
+        <section className="mt-5 rounded-2xl border border-slate-700/60 bg-slate-900/70 p-4">
+          <div className="grid gap-4 md:grid-cols-2">
+          {isSuperAdmin && (
             <label className="block max-w-md">
               <span className="mb-2 block text-xs font-semibold uppercase tracking-wider text-slate-500">Owner</span>
-              <select value={ownerId} onChange={(event) => { setIsLoading(true); setOwnerId(event.target.value); }} className={inputClassName}>
+              <select value={ownerId} onChange={(event) => { setIsLoading(true); setCategories([]); setProperties([]); setPropertyId(''); setOwnerId(event.target.value); }} className={inputClassName}>
                 <option value="">Select an owner</option>
                 {owners.map((owner) => (
                   <option key={getDocumentId(owner)} value={getDocumentId(owner)}>
@@ -335,8 +365,21 @@ export default function RentSettingsPage() {
                 ))}
               </select>
             </label>
-          </section>
-        )}
+          )}
+
+            <label className="block max-w-md">
+              <span className="mb-2 block text-xs font-semibold uppercase tracking-wider text-slate-500">Property</span>
+              <select value={propertyId} onChange={(event) => { setIsLoading(true); setCategories([]); setPropertyId(event.target.value); }} disabled={isSuperAdmin && !ownerId} className={inputClassName}>
+                <option value="">Select a property</option>
+                {properties.map((property) => (
+                  <option key={property._id} value={property._id}>
+                    {property.name} — {property.address}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+        </section>
 
         {error && <div role="alert" className="mt-5 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">{error}</div>}
 
@@ -354,7 +397,7 @@ export default function RentSettingsPage() {
           {isLoading ? (
             <div className="flex min-h-56 items-center justify-center"><FaSpinner className="animate-spin text-2xl text-emerald-400" /></div>
           ) : categories.length === 0 ? (
-            <div className="px-6 py-14 text-center text-sm text-slate-400">{isSuperAdmin && !ownerId ? 'Select an owner to load rent settings.' : 'No charge categories found.'}</div>
+            <div className="px-6 py-14 text-center text-sm text-slate-400">{!propertyId ? 'Select a property to load rent settings.' : 'No charge categories found.'}</div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full min-w-[780px] text-left text-sm">
