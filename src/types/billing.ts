@@ -14,6 +14,7 @@ export type ChargeCalculationMode =
 export type ChargeCategory = {
   _id: string;
   ownerId: string;
+  propertyId: string;
   name: string;
   code: string;
   defaultMode: ChargeCalculationMode;
@@ -85,4 +86,3 @@ export type ElectricityCalculation = {
   adjustmentAmount: number;
   totalAmount: number;
 };
-
