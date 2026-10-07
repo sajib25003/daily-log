@@ -2,12 +2,14 @@
 
 import ManagementModal from '@/components/property/ManagementModal';
 import {
+  listChargeCategories,
   listElectricityProviders,
+  updateApartmentChargeSettings,
   updateApartmentElectricityConfig,
   updatePropertyElectricitySettings,
   updateRentTerms,
 } from '@/lib/rentApi';
-import type { ElectricityProvider } from '@/types/billing';
+import type { ChargeCategory, ElectricityProvider } from '@/types/billing';
 import type {
   Apartment,
   ApartmentElectricityBillingType,
@@ -20,7 +22,12 @@ import type {
 import { getDocumentId } from '@/types/property';
 import { useState } from 'react';
 import type { FormEvent } from 'react';
-import { FaBolt, FaMoneyBillWave, FaSpinner } from 'react-icons/fa';
+import {
+  FaBolt,
+  FaListAlt,
+  FaMoneyBillWave,
+  FaSpinner,
+} from 'react-icons/fa';
 import Swal from 'sweetalert2';
 
 const inputClassName =
@@ -178,9 +185,17 @@ export function ApartmentBillingControls({
 }) {
   const tenancy = apartment.currentTenancy;
   const [electricityOpen, setElectricityOpen] = useState(false);
+  const [chargesOpen, setChargesOpen] = useState(false);
   const [rentOpen, setRentOpen] = useState(false);
+  const [isLoadingCharges, setIsLoadingCharges] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
+  const [chargeCategories, setChargeCategories] = useState<ChargeCategory[]>(
+    [],
+  );
+  const [chargeAmounts, setChargeAmounts] = useState<Record<string, string>>(
+    {},
+  );
   const [electricityForm, setElectricityForm] = useState({
     billingType:
       apartment.electricityConfig?.billingType ??
@@ -232,6 +247,83 @@ export function ApartmentBillingControls({
     }
   };
 
+  const openCharges = async () => {
+    setChargesOpen(true);
+    setIsLoadingCharges(true);
+    setError('');
+
+    try {
+      const categories = await listChargeCategories({
+        propertyId: property._id,
+      });
+      const currentAmountByCategory = new Map(
+        (apartment.chargeSettings ?? []).map((setting) => [
+          getDocumentId(setting.categoryId),
+          setting.amount,
+        ]),
+      );
+
+      setChargeCategories(categories);
+      setChargeAmounts(
+        Object.fromEntries(
+          categories.map((category) => {
+            const amount = currentAmountByCategory.get(category._id);
+            return [
+              category._id,
+              amount === null || amount === undefined ? '' : String(amount),
+            ];
+          }),
+        ),
+      );
+    } catch (requestError) {
+      setError(
+        requestError instanceof Error
+          ? requestError.message
+          : 'Failed to load apartment charge settings.',
+      );
+    } finally {
+      setIsLoadingCharges(false);
+    }
+  };
+
+  const submitCharges = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setIsSaving(true);
+    setError('');
+
+    try {
+      const charges = chargeCategories.map((category) => {
+        const rawAmount = chargeAmounts[category._id]?.trim() ?? '';
+        const amount =
+          category.defaultMode === 'fixed' && rawAmount !== ''
+            ? Number(rawAmount)
+            : null;
+
+        if (amount !== null && (!Number.isFinite(amount) || amount < 0)) {
+          throw new Error(`${category.name} amount is invalid.`);
+        }
+
+        return { categoryId: category._id, amount };
+      });
+
+      const updated = await updateApartmentChargeSettings(
+        apartment._id,
+        charges,
+      );
+      onApartmentUpdated(updated);
+      setChargesOpen(false);
+      showToast('Apartment charge amounts saved.');
+    } catch (requestError) {
+      setError(
+        requestError instanceof Error
+          ? requestError.message
+          : 'Failed to save apartment charge settings.',
+      );
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const openRent = () => {
     if (!tenancy) return;
     setRentForm(createRentForm(tenancy));
@@ -266,8 +358,9 @@ export function ApartmentBillingControls({
 
   return (
     <>
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-3 gap-2">
         <button type="button" onClick={openElectricity} className="inline-flex items-center justify-center gap-2 rounded-xl border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs font-semibold text-amber-300 hover:bg-amber-500/20"><FaBolt /> Electricity</button>
+        <button type="button" onClick={() => void openCharges()} className="inline-flex items-center justify-center gap-2 rounded-xl border border-indigo-500/20 bg-indigo-500/10 px-3 py-2 text-xs font-semibold text-indigo-300 hover:bg-indigo-500/20"><FaListAlt /> Charges</button>
         <button type="button" onClick={openRent} disabled={!tenancy} className="inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-xs font-semibold text-emerald-300 hover:bg-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-35"><FaMoneyBillWave /> Rent Terms</button>
       </div>
 
@@ -279,6 +372,79 @@ export function ApartmentBillingControls({
             <label className="block"><span className="mb-2 block text-sm text-slate-300">Meter number</span><input value={electricityForm.meterNumber} onChange={(event) => setElectricityForm((current) => ({ ...current, meterNumber: event.target.value }))} className={inputClassName} /></label>
             <label className="block"><span className="mb-2 block text-sm text-slate-300">Note</span><textarea rows={3} value={electricityForm.note} onChange={(event) => setElectricityForm((current) => ({ ...current, note: event.target.value }))} className={`${inputClassName} resize-none`} /></label>
           <ModalError message={error} /><ModalActions saving={isSaving} onCancel={() => setElectricityOpen(false)} label="Save electricity setup" />
+        </form>
+      </ManagementModal>
+
+      <ManagementModal open={chargesOpen} title={`Charges · ${apartment.apartmentNumber}`} onClose={() => !isSaving && setChargesOpen(false)} disableClose={isSaving} maxWidthClass="max-w-2xl">
+        <form onSubmit={submitCharges} className="space-y-5 p-5">
+          <div className="rounded-xl border border-slate-700 bg-slate-950/40 p-4">
+            <p className="font-semibold">{property.name} / {apartment.apartmentNumber}</p>
+            <p className="mt-1 text-xs leading-5 text-slate-500">
+              Fixed amounts are saved for this apartment only. Monthly variable
+              and submeter charges will be entered while generating a bill.
+            </p>
+          </div>
+
+          {isLoadingCharges ? (
+            <div className="flex justify-center py-10">
+              <FaSpinner className="animate-spin text-emerald-400" />
+            </div>
+          ) : chargeCategories.length === 0 ? (
+            <div className="rounded-xl border border-slate-700 px-4 py-8 text-center text-sm text-slate-400">
+              No active charge categories are configured for this property.
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {chargeCategories.map((category) => {
+                const supportsAmount = category.defaultMode === 'fixed';
+
+                return (
+                  <div key={category._id} className="grid gap-3 rounded-xl border border-slate-700/70 bg-slate-950/35 p-4 sm:grid-cols-[1fr_180px] sm:items-center">
+                    <div>
+                      <p className="font-semibold text-slate-100">{category.name}</p>
+                      <p className="mt-1 text-xs capitalize text-slate-500">
+                        {category.defaultMode.replace(/([A-Z])/g, ' $1')}
+                      </p>
+                    </div>
+                    {supportsAmount ? (
+                      <label className="block">
+                        <span className="sr-only">{category.name} amount</span>
+                        <div className="relative">
+                          <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-500">৳</span>
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={chargeAmounts[category._id] ?? ''}
+                            onChange={(event) =>
+                              setChargeAmounts((current) => ({
+                                ...current,
+                                [category._id]: event.target.value,
+                              }))
+                            }
+                            placeholder="Amount"
+                            className={`${inputClassName} pl-8`}
+                          />
+                        </div>
+                      </label>
+                    ) : (
+                      <p className="text-xs text-slate-500 sm:text-right">
+                        Set during billing
+                      </p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          <ModalError message={error} />
+          <ModalActions
+            saving={isSaving}
+            onCancel={() => setChargesOpen(false)}
+            label="Save charge amounts"
+            disabled={isLoadingCharges || chargeCategories.length === 0}
+          />
         </form>
       </ManagementModal>
 
