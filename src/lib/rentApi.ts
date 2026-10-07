@@ -90,13 +90,13 @@ export const updateRentTerms = (
     }),
   });
 
-export const listChargeCategories = (options?: {
-  ownerId?: string;
+export const listChargeCategories = (options: {
+  propertyId: string;
   includeInactive?: boolean;
 }) => {
   const params = new URLSearchParams();
-  if (options?.ownerId) params.set('ownerId', options.ownerId);
-  if (options?.includeInactive) params.set('includeInactive', 'true');
+  params.set('propertyId', options.propertyId);
+  if (options.includeInactive) params.set('includeInactive', 'true');
   const query = params.toString();
 
   return request<ChargeCategory[]>(
@@ -105,7 +105,7 @@ export const listChargeCategories = (options?: {
 };
 
 export const createChargeCategory = (payload: {
-  ownerId?: string;
+  propertyId: string;
   name: string;
   code?: string;
   defaultMode: ChargeCalculationMode;
@@ -247,4 +247,3 @@ export const updateApartmentElectricityConfig = (
     method: 'PATCH',
     body: JSON.stringify({ electricityConfig: payload }),
   });
-
