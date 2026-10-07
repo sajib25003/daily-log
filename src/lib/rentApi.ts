@@ -238,7 +238,6 @@ export const updateApartmentElectricityConfig = (
   payload: {
     billingType: ApartmentElectricityBillingType;
     paymentResponsibility?: ElectricityPaymentResponsibility;
-    providerOverrideId?: string | null;
     meterNumber?: string | null;
     note?: string | null;
   },
