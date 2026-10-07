@@ -2,6 +2,7 @@
 
 import ManagementModal from '@/components/property/ManagementModal';
 import { useAuth } from '@/context/AuthContext';
+import { listProperties } from '@/lib/propertyApi';
 import {
   calculateElectricityBill,
   createElectricityProvider,
@@ -20,6 +21,8 @@ import type {
   ElectricityTariffSlab,
 } from '@/types/billing';
 import type { ElectricityMeterPhase } from '@/types/property';
+import { getDocumentId } from '@/types/property';
+import type { Property } from '@/types/property';
 import { useEffect, useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
 import {
@@ -83,6 +86,8 @@ export default function ElectricityPage() {
   const [tab, setTab] = useState<Tab>('calculator');
   const [providers, setProviders] = useState<ElectricityProvider[]>([]);
   const [tariffs, setTariffs] = useState<ElectricityTariff[]>([]);
+  const [properties, setProperties] = useState<Property[]>([]);
+  const [selectedPropertyId, setSelectedPropertyId] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState('');
@@ -109,18 +114,25 @@ export default function ElectricityPage() {
   const [isCalculating, setIsCalculating] = useState(false);
 
   const loadData = async () => {
-    const [providerItems, tariffItems] = await Promise.all([
+    const [providerItems, tariffItems, propertyItems] = await Promise.all([
       listElectricityProviders(isSuperAdmin),
       listElectricityTariffs({ activeOnly: !isSuperAdmin }),
+      isSuperAdmin ? Promise.resolve([] as Property[]) : listProperties(),
     ]);
     setProviders(providerItems);
     setTariffs(tariffItems);
+    setProperties(propertyItems);
+    const selectedProperty = propertyItems.find(
+      (property) => property._id === selectedPropertyId,
+    ) ?? propertyItems[0];
+    setSelectedPropertyId(selectedProperty?._id ?? '');
     setCalculationForm((current) => ({
       ...current,
-      providerId:
-        current.providerId ||
-        providerItems.find((provider) => provider.isActive)?._id ||
-        '',
+      providerId: isSuperAdmin
+        ? current.providerId ||
+          providerItems.find((provider) => provider.isActive)?._id ||
+          ''
+        : getDocumentId(selectedProperty?.electricitySettings?.providerId),
     }));
   };
 
@@ -131,17 +143,24 @@ export default function ElectricityPage() {
     Promise.all([
       listElectricityProviders(isSuperAdmin),
       listElectricityTariffs({ activeOnly: !isSuperAdmin }),
+      isSuperAdmin ? Promise.resolve([] as Property[]) : listProperties(),
     ])
-      .then(([providerItems, tariffItems]) => {
+      .then(([providerItems, tariffItems, propertyItems]) => {
         if (cancelled) return;
         setProviders(providerItems);
         setTariffs(tariffItems);
+        setProperties(propertyItems);
+        const selectedProperty = propertyItems[0];
+        setSelectedPropertyId(selectedProperty?._id ?? '');
         setCalculationForm((current) => ({
           ...current,
-          providerId:
-            current.providerId ||
-            providerItems.find((provider) => provider.isActive)?._id ||
-            '',
+          providerId: isSuperAdmin
+            ? current.providerId ||
+              providerItems.find((provider) => provider.isActive)?._id ||
+              ''
+            : getDocumentId(
+                selectedProperty?.electricitySettings?.providerId,
+              ),
         }));
         setError('');
       })
@@ -167,6 +186,27 @@ export default function ElectricityPage() {
     () => providers.filter((provider) => provider.isActive),
     [providers],
   );
+
+  const selectedProperty = useMemo(
+    () => properties.find((property) => property._id === selectedPropertyId),
+    [properties, selectedPropertyId],
+  );
+
+  const selectedPropertyProvider =
+    selectedProperty?.electricitySettings?.providerId;
+
+  const selectProperty = (propertyId: string) => {
+    const property = properties.find((item) => item._id === propertyId);
+
+    setSelectedPropertyId(propertyId);
+    setCalculation(null);
+    setCalculationForm((current) => ({
+      ...current,
+      providerId: getDocumentId(property?.electricitySettings?.providerId),
+      meterPhase:
+        property?.electricitySettings?.defaultMeterPhase ?? 'singlePhase',
+    }));
+  };
 
   const refresh = async () => {
     setIsRefreshing(true);
@@ -391,11 +431,28 @@ export default function ElectricityPage() {
               <section className="mt-5 grid gap-5 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]">
                 <form onSubmit={submitCalculation} className="space-y-5 rounded-2xl border border-slate-700/60 bg-slate-900/75 p-5 shadow-xl">
                   <div className="flex items-center gap-3"><span className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/15 text-amber-300"><FaCalculator /></span><div><h2 className="font-bold">Bill calculator</h2><p className="text-xs text-slate-500">Uses the tariff effective on the selected date</p></div></div>
-                  <label className="block"><span className="mb-2 block text-sm text-slate-300">Provider *</span><select required value={calculationForm.providerId} onChange={(event) => setCalculationForm((current) => ({ ...current, providerId: event.target.value }))} className={inputClassName}><option value="">Select provider</option>{activeProviders.map((provider) => <option key={provider._id} value={provider._id}>{provider.name} ({provider.code})</option>)}</select></label>
+                  {isSuperAdmin ? (
+                    <label className="block"><span className="mb-2 block text-sm text-slate-300">Provider *</span><select required value={calculationForm.providerId} onChange={(event) => setCalculationForm((current) => ({ ...current, providerId: event.target.value }))} className={inputClassName}><option value="">Select provider</option>{activeProviders.map((provider) => <option key={provider._id} value={provider._id}>{provider.name} ({provider.code})</option>)}</select></label>
+                  ) : (
+                    <div className="space-y-3">
+                      <label className="block"><span className="mb-2 block text-sm text-slate-300">Property *</span><select required value={selectedPropertyId} onChange={(event) => selectProperty(event.target.value)} className={inputClassName}><option value="">Select property</option>{properties.map((property) => <option key={property._id} value={property._id}>{property.name} — {property.address}</option>)}</select></label>
+                      <div className="rounded-xl border border-slate-700 bg-slate-950/50 px-4 py-3 text-sm">
+                        <span className="text-slate-500">Provider: </span>
+                        <span className="font-semibold text-slate-200">
+                          {selectedPropertyProvider && typeof selectedPropertyProvider === 'object'
+                            ? `${selectedPropertyProvider.name} (${selectedPropertyProvider.code})`
+                            : 'Not configured for this property'}
+                        </span>
+                      </div>
+                      {!calculationForm.providerId && selectedPropertyId && (
+                        <p className="text-xs text-amber-300">Configure the property electricity provider before calculating a bill.</p>
+                      )}
+                    </div>
+                  )}
                   <div className="grid gap-4 sm:grid-cols-2"><label className="block"><span className="mb-2 block text-sm text-slate-300">Consumed unit *</span><input required type="number" min="0" step="0.01" value={calculationForm.consumedUnit} onChange={(event) => setCalculationForm((current) => ({ ...current, consumedUnit: event.target.value }))} className={inputClassName} /></label><label className="block"><span className="mb-2 block text-sm text-slate-300">Applicable date *</span><input required type="date" value={calculationForm.applicableDate} onChange={(event) => setCalculationForm((current) => ({ ...current, applicableDate: event.target.value }))} className={inputClassName} /></label></div>
                   <div className="grid gap-4 sm:grid-cols-2"><label className="block"><span className="mb-2 block text-sm text-slate-300">Meter phase</span><select value={calculationForm.meterPhase} onChange={(event) => setCalculationForm((current) => ({ ...current, meterPhase: event.target.value as ElectricityMeterPhase }))} className={inputClassName}><option value="singlePhase">Single phase</option><option value="threePhase">Three phase</option></select></label><label className="block"><span className="mb-2 block text-sm text-slate-300">Connected load</span><input type="number" min="0" step="0.01" value={calculationForm.connectedLoad} onChange={(event) => setCalculationForm((current) => ({ ...current, connectedLoad: event.target.value }))} className={inputClassName} /></label></div>
                   <div className="grid gap-4 sm:grid-cols-2"><label className="block"><span className="mb-2 block text-sm text-slate-300">Meter charge override</span><input type="number" min="0" step="0.01" value={calculationForm.meterChargeOverride} onChange={(event) => setCalculationForm((current) => ({ ...current, meterChargeOverride: event.target.value }))} placeholder="Use tariff default" className={inputClassName} /></label><label className="block"><span className="mb-2 block text-sm text-slate-300">Adjustment</span><input type="number" step="0.01" value={calculationForm.adjustmentAmount} onChange={(event) => setCalculationForm((current) => ({ ...current, adjustmentAmount: event.target.value }))} placeholder="Can be negative" className={inputClassName} /></label></div>
-                  <button type="submit" disabled={isCalculating} className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-amber-500 px-4 py-3 font-bold text-slate-950 hover:bg-amber-400 disabled:opacity-60">{isCalculating ? <FaSpinner className="animate-spin" /> : <FaBolt />} Calculate bill</button>
+                  <button type="submit" disabled={isCalculating || !calculationForm.providerId} className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-amber-500 px-4 py-3 font-bold text-slate-950 hover:bg-amber-400 disabled:opacity-60">{isCalculating ? <FaSpinner className="animate-spin" /> : <FaBolt />} Calculate bill</button>
                 </form>
 
                 <div className="rounded-2xl border border-slate-700/60 bg-slate-900/75 p-5 shadow-xl">
@@ -482,4 +539,3 @@ function PageLoader() {
 function AccessDenied() {
   return <main className="min-h-[70vh] bg-slate-950 px-4 py-10 text-slate-100"><div className="mx-auto max-w-xl rounded-2xl border border-red-500/20 bg-red-500/10 p-7 text-center"><h1 className="text-xl font-bold">Access denied</h1><p className="mt-2 text-sm text-slate-400">Only SuperAdmin and owner accounts can access electricity settings.</p></div></main>;
 }
-
