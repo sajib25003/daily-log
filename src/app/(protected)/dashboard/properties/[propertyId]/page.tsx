@@ -1,6 +1,10 @@
 'use client';
 
 import ManagementModal from '@/components/property/ManagementModal';
+import {
+  ApartmentBillingControls,
+  PropertyElectricityButton,
+} from '@/components/property/RentElectricityControls';
 import { useAuth } from '@/context/AuthContext';
 import {
   createApartment,
@@ -33,11 +37,12 @@ import {
   useRouter,
   useSearchParams,
 } from 'next/navigation';
-import { Suspense, useEffect, useMemo, useState } from 'react';
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import {
   FaArrowLeft,
   FaBuilding,
+  FaCalendarAlt,
   FaDoorOpen,
   FaEdit,
   FaMapMarkerAlt,
@@ -239,6 +244,7 @@ function PropertyApartmentsContent() {
       return [
         apartment.apartmentNumber,
         apartment.note,
+        apartment.currentTenancy?.note,
         formatUserName(tenant?.name),
         tenant?.email,
         tenant?.phone,
@@ -626,6 +632,18 @@ function PropertyApartmentsContent() {
             </div>
 
             <div className="flex flex-wrap gap-2">
+              <PropertyElectricityButton
+                property={property}
+                onUpdated={(updatedProperty) =>
+                  setProperty((currentProperty) => ({
+                    ...updatedProperty,
+                    apartmentCount:
+                      currentProperty?.apartmentCount ??
+                      updatedProperty.apartmentCount,
+                  }))
+                }
+              />
+
               <button
                 type="button"
                 onClick={refreshData}
@@ -767,21 +785,34 @@ function PropertyApartmentsContent() {
                     }`}
                   >
                     {isOccupied ? (
-                      <div className="flex items-start gap-3">
-                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-amber-500/15 text-amber-300">
-                          <FaUserCheck />
-                        </span>
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-semibold text-slate-100">
-                            {formatUserName(currentTenant?.name)}
-                          </p>
-                          <p className="truncate text-xs text-slate-400">
-                            {currentTenant?.phone || currentTenant?.email}
-                          </p>
-                          <p className="mt-1 text-[11px] text-slate-500">
-                            Since {formatDate(currentTenancy?.startDate)}
-                          </p>
+                      <div>
+                        <div className="flex items-start gap-3">
+                          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-amber-500/15 text-amber-300">
+                            <FaUserCheck />
+                          </span>
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-semibold text-slate-100">
+                              {formatUserName(currentTenant?.name)}
+                            </p>
+                            <p className="truncate text-xs text-slate-400">
+                              {currentTenant?.phone || currentTenant?.email}
+                            </p>
+                            <p className="mt-1 text-[11px] text-slate-500">
+                              Since {formatDate(currentTenancy?.startDate)}
+                            </p>
+                          </div>
                         </div>
+
+                        {currentTenancy?.note && (
+                          <div className="mt-3 border-t border-amber-500/15 pt-3">
+                            <p className="text-[10px] font-semibold uppercase tracking-wider text-amber-400/80">
+                              Assignment note
+                            </p>
+                            <p className="mt-1 max-h-20 overflow-y-auto whitespace-pre-wrap break-words pr-1 text-xs leading-5 text-slate-300">
+                              {currentTenancy.note}
+                            </p>
+                          </div>
+                        )}
                       </div>
                     ) : (
                       <div className="flex items-center gap-3 text-sm text-slate-500">
@@ -791,22 +822,81 @@ function PropertyApartmentsContent() {
                     )}
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={() =>
-                      isOccupied
-                        ? openMoveOut(apartment)
-                        : openAssignTenant(apartment)
-                    }
-                    className={`mt-auto inline-flex w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition ${
-                      isOccupied
-                        ? 'border border-amber-500/25 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20'
-                        : 'bg-indigo-600 text-white hover:bg-indigo-500'
-                    }`}
-                  >
-                    {isOccupied ? <FaUserMinus /> : <FaUserPlus />}
-                    {isOccupied ? 'Move Out' : 'Assign Tenant'}
-                  </button>
+                  <div className="mt-auto pt-4">
+                    <div className="mb-3 space-y-1.5 rounded-xl border border-slate-800 bg-slate-950/35 px-3 py-2.5 text-[11px] text-slate-400">
+                      <p className="flex items-center justify-between gap-2">
+                        <span>Rent</span>
+                        <span className="font-semibold text-slate-300">
+                          {currentTenancy?.rentTerms
+                            ? `৳${currentTenancy.rentTerms.baseRent.toLocaleString('en-BD')}`
+                            : isOccupied
+                              ? 'Not configured'
+                              : 'No tenancy'}
+                        </span>
+                      </p>
+                      <p className="flex items-center justify-between gap-2">
+                        <span>Electricity</span>
+                        <span className="font-semibold capitalize text-slate-300">
+                          {apartment.electricityConfig?.billingType
+                            ?.replace(/([A-Z])/g, ' $1')
+                            .trim() ?? 'Not configured'}
+                        </span>
+                      </p>
+                    </div>
+
+                    <ApartmentBillingControls
+                      apartment={apartment}
+                      property={property}
+                      onApartmentUpdated={(updatedApartment) =>
+                        setApartments((currentApartments) =>
+                          currentApartments.map((item) =>
+                            item._id === updatedApartment._id
+                              ? {
+                                  ...item,
+                                  ...updatedApartment,
+                                  currentTenancy:
+                                    updatedApartment.currentTenancy ??
+                                    item.currentTenancy,
+                                }
+                              : item,
+                          ),
+                        )
+                      }
+                      onTenancyUpdated={(updatedTenancy) => {
+                        setApartments((currentApartments) =>
+                          currentApartments.map((item) =>
+                            item._id === apartment._id
+                              ? { ...item, currentTenancy: updatedTenancy }
+                              : item,
+                          ),
+                        );
+                        setActiveTenancies((current) =>
+                          current.map((item) =>
+                            item._id === updatedTenancy._id
+                              ? updatedTenancy
+                              : item,
+                          ),
+                        );
+                      }}
+                    />
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        isOccupied
+                          ? openMoveOut(apartment)
+                          : openAssignTenant(apartment)
+                      }
+                      className={`mt-2 inline-flex w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition ${
+                        isOccupied
+                          ? 'border border-amber-500/25 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20'
+                          : 'bg-indigo-600 text-white hover:bg-indigo-500'
+                      }`}
+                    >
+                      {isOccupied ? <FaUserMinus /> : <FaUserPlus />}
+                      {isOccupied ? 'Move Out' : 'Assign Tenant'}
+                    </button>
+                  </div>
                 </article>
               );
             })}
@@ -919,25 +1009,19 @@ function PropertyApartmentsContent() {
             )}
           </label>
 
-          <label className="block">
-            <span className="mb-2 block text-sm font-medium text-slate-300">
-              Move-in date <span className="text-red-400">*</span>
-            </span>
-            <input
-              type="date"
-              value={tenancyForm.startDate}
-              max={toLocalDateInputValue()}
-              onChange={(event) =>
-                setTenancyForm((current) => ({
-                  ...current,
-                  startDate: event.target.value,
-                }))
-              }
-              required
-              disabled={isSaving}
-              className={inputClassName}
-            />
-          </label>
+          <DatePickerField
+            label="Move-in date"
+            value={tenancyForm.startDate}
+            max={toLocalDateInputValue()}
+            onChange={(startDate) =>
+              setTenancyForm((current) => ({
+                ...current,
+                startDate,
+              }))
+            }
+            disabled={isSaving}
+            required
+          />
 
           <label className="block">
             <span className="mb-2 block text-sm font-medium text-slate-300">
@@ -993,28 +1077,32 @@ function PropertyApartmentsContent() {
               Assigned since{' '}
               {formatDate(selectedApartment?.currentTenancy?.startDate)}
             </p>
+            {selectedApartment?.currentTenancy?.note && (
+              <div className="mt-3 border-t border-amber-500/15 pt-3">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-amber-400/80">
+                  Assignment note
+                </p>
+                <p className="mt-1 whitespace-pre-wrap break-words text-xs leading-5 text-slate-300">
+                  {selectedApartment.currentTenancy.note}
+                </p>
+              </div>
+            )}
           </div>
 
-          <label className="block">
-            <span className="mb-2 block text-sm font-medium text-slate-300">
-              Move-out date <span className="text-red-400">*</span>
-            </span>
-            <input
-              type="date"
-              value={moveOutForm.endDate}
-              min={selectedApartment?.currentTenancy?.startDate?.slice(0, 10)}
-              max={toLocalDateInputValue()}
-              onChange={(event) =>
-                setMoveOutForm((current) => ({
-                  ...current,
-                  endDate: event.target.value,
-                }))
-              }
-              required
-              disabled={isSaving}
-              className={inputClassName}
-            />
-          </label>
+          <DatePickerField
+            label="Move-out date"
+            value={moveOutForm.endDate}
+            min={selectedApartment?.currentTenancy?.startDate?.slice(0, 10)}
+            max={toLocalDateInputValue()}
+            onChange={(endDate) =>
+              setMoveOutForm((current) => ({
+                ...current,
+                endDate,
+              }))
+            }
+            disabled={isSaving}
+            required
+          />
 
           <label className="block">
             <span className="mb-2 block text-sm font-medium text-slate-300">
@@ -1079,6 +1167,74 @@ function ModalError({ message }: { message: string }) {
     >
       {message}
     </div>
+  );
+}
+
+function DatePickerField({
+  label,
+  value,
+  onChange,
+  min,
+  max,
+  disabled = false,
+  required = false,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  min?: string;
+  max?: string;
+  disabled?: boolean;
+  required?: boolean;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const openCalendar = () => {
+    const input = inputRef.current;
+
+    if (!input || disabled) return;
+
+    input.focus();
+
+    try {
+      input.showPicker?.();
+    } catch {
+      // Some browsers allow focusing the native date field but block showPicker.
+    }
+  };
+
+  return (
+    <label className="block">
+      <span className="mb-2 block text-sm font-medium text-slate-300">
+        {label} {required && <span className="text-red-400">*</span>}
+      </span>
+
+      <div className="flex gap-2">
+        <input
+          ref={inputRef}
+          type="date"
+          value={value}
+          min={min}
+          max={max}
+          onChange={(event) => onChange(event.target.value)}
+          onClick={openCalendar}
+          required={required}
+          disabled={disabled}
+          className={`${inputClassName} min-w-0 flex-1 [color-scheme:dark]`}
+        />
+
+        <button
+          type="button"
+          onClick={openCalendar}
+          disabled={disabled}
+          aria-label={`Open ${label.toLowerCase()} calendar`}
+          title="Open calendar"
+          className="flex h-[46px] w-[46px] shrink-0 items-center justify-center rounded-xl border border-indigo-500/30 bg-indigo-500/10 text-indigo-300 transition hover:border-indigo-400 hover:bg-indigo-500/20 hover:text-indigo-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          <FaCalendarAlt aria-hidden="true" />
+        </button>
+      </div>
+    </label>
   );
 }
 

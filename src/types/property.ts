@@ -22,6 +22,59 @@ export type UserReference = {
   ownerId?: string | UserReference | null;
 };
 
+export type ElectricityProviderReference = {
+  _id: string;
+  name: string;
+  code: string;
+  isActive?: boolean;
+};
+
+export type ElectricityMeterPhase = 'singlePhase' | 'threePhase';
+
+export type PropertyElectricitySettings = {
+  providerId: string | ElectricityProviderReference;
+  consumerCategory: 'LT_A_RESIDENTIAL';
+  accountNumber?: string | null;
+  defaultMeterPhase: ElectricityMeterPhase;
+  tariffSelection: 'automatic';
+  updatedAt?: string;
+};
+
+export type ApartmentElectricityBillingType =
+  | 'postpaid'
+  | 'prepaid'
+  | 'submeter'
+  | 'includedInRent'
+  | 'notApplicable';
+
+export type ElectricityPaymentResponsibility =
+  | 'ownerCollects'
+  | 'tenantPaysDirectly'
+  | 'notApplicable';
+
+export type ApartmentElectricityConfig = {
+  billingType: ApartmentElectricityBillingType;
+  paymentResponsibility: ElectricityPaymentResponsibility;
+  meterNumber?: string | null;
+  note?: string | null;
+  updatedAt?: string;
+};
+
+export type ApartmentChargeSetting = {
+  categoryId:
+    | string
+    | {
+        _id: string;
+        name: string;
+        code: string;
+        defaultMode: import('@/types/billing').ChargeCalculationMode;
+        isActive: boolean;
+        sortOrder: number;
+      };
+  amount?: number | null;
+  updatedAt?: string;
+};
+
 export type Property = {
   _id: string;
   name: string;
@@ -30,6 +83,7 @@ export type Property = {
   ownerId: string | UserReference;
   createdBy?: string | UserReference;
   apartmentCount?: number;
+  electricitySettings?: PropertyElectricitySettings | null;
   createdAt?: string;
   updatedAt?: string;
 };
@@ -43,6 +97,55 @@ export type Apartment = {
   createdAt?: string;
   updatedAt?: string;
   currentTenancy?: Tenancy | null;
+  electricityConfig?: ApartmentElectricityConfig | null;
+  chargeSettings?: ApartmentChargeSetting[];
+};
+
+export type NoticePeriodUnit = 'days' | 'months';
+
+export type RentTerms = {
+  baseRent: number;
+  dueDay: number;
+  effectiveFrom: string;
+  noticePeriod: {
+    value: number;
+    unit: NoticePeriodUnit;
+  };
+  rentRevision: {
+    intervalMonths?: number | null;
+    nextRevisionDate?: string | null;
+    note?: string | null;
+  };
+  securityDeposit?: number | null;
+  advanceAmount?: number | null;
+  agreementStartDate?: string | null;
+  agreementEndDate?: string | null;
+  note?: string | null;
+};
+
+export type RentRateHistory = {
+  amount: number;
+  effectiveFrom: string;
+  effectiveTo?: string | null;
+  changedBy?: string | UserReference;
+  note?: string | null;
+};
+
+export type RentTermsFormData = {
+  baseRent: string;
+  dueDay: string;
+  effectiveFrom: string;
+  noticeValue: string;
+  noticeUnit: NoticePeriodUnit;
+  revisionIntervalMonths: string;
+  nextRevisionDate: string;
+  revisionNote: string;
+  securityDeposit: string;
+  advanceAmount: string;
+  agreementStartDate: string;
+  agreementEndDate: string;
+  note: string;
+  rateChangeNote: string;
 };
 
 export type TenancyStatus = 'active' | 'ended';
@@ -51,10 +154,21 @@ export type Tenancy = {
   _id: string;
   apartmentId:
     | string
-    | Pick<Apartment, '_id' | 'apartmentNumber' | 'propertyId' | 'note'>;
+    | Pick<
+        Apartment,
+        | '_id'
+        | 'apartmentNumber'
+        | 'propertyId'
+        | 'note'
+        | 'electricityConfig'
+        | 'chargeSettings'
+      >;
   propertyId:
     | string
-    | Pick<Property, '_id' | 'name' | 'address' | 'ownerId'>;
+    | Pick<
+        Property,
+        '_id' | 'name' | 'address' | 'ownerId' | 'electricitySettings'
+      >;
   tenantId: string | UserReference;
   ownerId: string | UserReference;
   startDate: string;
@@ -66,6 +180,8 @@ export type Tenancy = {
   endedBy?: string | UserReference | null;
   createdAt?: string;
   updatedAt?: string;
+  rentTerms?: RentTerms | null;
+  rentRateHistory?: RentRateHistory[];
 };
 
 export type TenancyListData = {
