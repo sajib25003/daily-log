@@ -31,7 +31,6 @@ const receiptItems = [
 
 const roleLabels = {
   superAdmin: "Super Admin",
-  admin: "System Admin",
   owner: "Property Owner",
   tenant: "Tenant",
   user: "General User",

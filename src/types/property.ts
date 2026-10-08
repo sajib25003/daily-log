@@ -1,6 +1,5 @@
 export type UserRole =
   | 'superAdmin'
-  | 'admin'
   | 'owner'
   | 'tenant'
   | 'user';

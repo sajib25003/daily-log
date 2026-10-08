@@ -10,7 +10,7 @@ import {
   useState,
 } from "react";
 
-export type UserRole = "superAdmin" | "admin" | "owner" | "tenant" | "user";
+export type UserRole = "superAdmin" | "owner" | "tenant" | "user";
 export type AuthUser = {
   id: string;
   email: string;
@@ -139,6 +139,16 @@ export function AuthProvider({ children }: AuthProviderProps) {
     return () => {
       isMounted = false;
       controller.abort();
+    };
+  }, []);
+
+  useEffect(() => {
+    const clearExpiredAuthentication = () => setUser(null);
+
+    window.addEventListener("auth:expired", clearExpiredAuthentication);
+
+    return () => {
+      window.removeEventListener("auth:expired", clearExpiredAuthentication);
     };
   }, []);
 

@@ -17,8 +17,8 @@ import {
   FaXmark,
 } from "react-icons/fa6";
 
-type UserRole = "superAdmin" | "admin" | "owner" | "tenant" | "user";
-type ActorRole = "superAdmin" | "admin" | "owner";
+type UserRole = "superAdmin" | "owner" | "tenant" | "user";
+type ActorRole = "superAdmin" | "owner";
 
 type UserName = {
   firstName: string;
@@ -113,15 +113,13 @@ const initialFormData: UserFormData = {
 
 const roleLabels: Record<UserRole, string> = {
   superAdmin: "Super Admin",
-  admin: "Admin",
   owner: "Owner",
   tenant: "Tenant",
   user: "General User",
 };
 
 const roleOptionsByActor: Record<ActorRole, UserRole[]> = {
-  superAdmin: ["superAdmin", "admin", "owner", "tenant", "user"],
-  admin: ["owner", "tenant", "user"],
+  superAdmin: ["superAdmin", "owner", "tenant", "user"],
   owner: ["tenant"],
 };
 
@@ -158,11 +156,11 @@ export default function CreateUserPage() {
   const [createdUser, setCreatedUser] = useState<ManagedUser | null>(null);
 
   const actorRole =
-    user && ["superAdmin", "admin", "owner"].includes(user.role)
+    user && ["superAdmin", "owner"].includes(user.role)
       ? (user.role as ActorRole)
       : undefined;
   const canCreateUsers = Boolean(actorRole);
-  const canAssignOwner = actorRole === "superAdmin" || actorRole === "admin";
+  const canAssignOwner = actorRole === "superAdmin";
   const roleOptions = actorRole ? roleOptionsByActor[actorRole] : [];
 
   const passwordValidationError = getPasswordError(formData.password);
@@ -207,7 +205,7 @@ export default function CreateUserPage() {
         const availableOwners = Array.isArray(result?.data)
           ? result.data.filter(
               (item) =>
-                ["owner", "admin"].includes(item.role) &&
+                item.role === "owner" &&
                 item.userStatus !== "inactive",
             )
           : [];

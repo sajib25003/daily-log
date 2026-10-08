@@ -1,20 +1,11 @@
 "use client";
 
 import { useAuth } from "@/context/AuthContext";
+import { apiFetch } from "@/lib/apiClient";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 import { FaEye, FaEyeSlash } from "react-icons/fa";
-
-const API_BASE_URL = (
-  process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:4000/api/v1"
-).replace(/\/+$/, "");
-
-const PASSWORD_REGEX =
-  /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9])\S{8,}$/;
-
-const PASSWORD_ERROR_MESSAGE =
-  "Password must be at least 8 characters and include an uppercase letter, a lowercase letter, a number and a special character.";
 
 type LoginResponse = {
   success: boolean;
@@ -24,7 +15,7 @@ type LoginResponse = {
     user?: {
       id: string;
       email: string;
-      role: "superAdmin" | "admin" | "owner" | "tenant" | "user";
+      role: "superAdmin" | "owner" | "tenant" | "user";
       name?: {
         firstName: string;
         middleName?: string | null;
@@ -42,24 +33,8 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [passwordError, setPasswordError] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-
-  const validatePassword = (value: string) => {
-    if (!value) return "Password is required.";
-
-    return PASSWORD_REGEX.test(value) ? "" : PASSWORD_ERROR_MESSAGE;
-  };
-
-  const handlePasswordChange = (value: string) => {
-    setPassword(value);
-
-    // Once an error is visible, update it while the user corrects the password.
-    if (passwordError) {
-      setPasswordError(validatePassword(value));
-    }
-  };
 
   const handleLogin = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -68,29 +43,25 @@ export default function LoginPage() {
 
     setError("");
 
-    const validationError = validatePassword(password);
-
-    if (validationError) {
-      setPasswordError(validationError);
-      return;
-    }
-
-    setPasswordError("");
     setIsLoading(true);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/auth/login`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
+      const response = await apiFetch(
+        "/auth/login",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+          },
+          credentials: "include",
+          body: JSON.stringify({
+            email: email.trim().toLowerCase(),
+            password,
+          }),
         },
-        credentials: "include",
-        body: JSON.stringify({
-          email: email.trim().toLowerCase(),
-          password,
-        }),
-      });
+        false,
+      );
 
       const result = (await response
         .json()
@@ -186,19 +157,14 @@ export default function LoginPage() {
                 id="password"
                 type={showPassword ? "text" : "password"}
                 value={password}
-                onChange={(event) => handlePasswordChange(event.target.value)}
-                onBlur={() => setPasswordError(validatePassword(password))}
+                onChange={(event) => setPassword(event.target.value)}
                 placeholder="Enter your password"
                 autoComplete="current-password"
                 required
+                minLength={1}
+                maxLength={128}
                 disabled={isLoading}
-                aria-invalid={Boolean(passwordError)}
-                aria-describedby={passwordError ? "password-error" : undefined}
-                className={`w-full rounded-xl border bg-slate-800/90 py-3 pl-4 pr-12 text-slate-100 outline-none transition placeholder:text-slate-500 disabled:cursor-not-allowed disabled:opacity-60 ${
-                  passwordError
-                    ? "border-red-500/70 focus:border-red-500 focus:ring-2 focus:ring-red-500/20"
-                    : "border-slate-700 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
-                }`}
+                className="w-full rounded-xl border border-slate-700 bg-slate-800/90 py-3 pl-4 pr-12 text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 disabled:cursor-not-allowed disabled:opacity-60"
               />
 
               <button
@@ -217,16 +183,6 @@ export default function LoginPage() {
                 )}
               </button>
             </div>
-
-            {passwordError && (
-              <p
-                id="password-error"
-                role="alert"
-                className="mt-2 text-xs leading-5 text-red-400"
-              >
-                {passwordError}
-              </p>
-            )}
           </div>
 
           {error && (

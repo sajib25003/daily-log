@@ -20,7 +20,7 @@ import {
   FaUsers,
 } from "react-icons/fa";
 
-type UserRole = "superAdmin" | "admin" | "owner" | "tenant" | "user";
+type UserRole = "superAdmin" | "owner" | "tenant" | "user";
 type UserStatus = "active" | "inactive";
 
 type UserName = {
@@ -93,7 +93,6 @@ type EditForm = {
 
 const roleLabels: Record<UserRole, string> = {
   superAdmin: "Super Admin",
-  admin: "Admin",
   owner: "Owner",
   tenant: "Tenant",
   user: "General User",
@@ -102,7 +101,6 @@ const roleLabels: Record<UserRole, string> = {
 const roleBadgeClasses: Record<UserRole, string> = {
   superAdmin:
     "bg-violet-500/15 text-violet-300 ring-1 ring-inset ring-violet-500/20",
-  admin: "bg-blue-500/15 text-blue-300 ring-1 ring-inset ring-blue-500/20",
   owner:
     "bg-amber-500/15 text-amber-300 ring-1 ring-inset ring-amber-500/20",
   tenant:
@@ -220,8 +218,7 @@ export default function UserManagementPage() {
 
   useBodyScrollLock(Boolean(editingUser));
 
-  const hasGlobalAccess =
-    user?.role === "superAdmin" || user?.role === "admin";
+  const hasGlobalAccess = user?.role === "superAdmin";
   const isOwner = user?.role === "owner";
 
   useEffect(() => {
@@ -651,7 +648,7 @@ export default function UserManagementPage() {
             Access denied
           </h1>
           <p className="mt-2 text-sm text-slate-400">
-            Only administrators and property owners can manage users.
+            Only super admins and property owners can manage users.
           </p>
         </div>
       </main>
@@ -736,7 +733,6 @@ export default function UserManagementPage() {
               >
                 <option value="all">All roles</option>
                 <option value="superAdmin">Super Admin</option>
-                <option value="admin">Admin</option>
                 <option value="owner">Owner</option>
                 <option value="tenant">Tenant</option>
                 <option value="user">General User</option>

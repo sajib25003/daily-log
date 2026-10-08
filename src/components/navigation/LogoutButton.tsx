@@ -1,7 +1,7 @@
 "use client";
 
 import { useAuth } from "@/context/AuthContext";
-import { API_BASE_URL } from "@/lib/apiClient";
+import { apiFetch } from "@/lib/apiClient";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { FaPowerOff, FaSpinner } from "react-icons/fa";
@@ -31,13 +31,17 @@ export default function LogoutButton({
     setLogoutError("");
 
     try {
-      const response = await fetch(`${API_BASE_URL}/auth/logout`, {
-        method: "POST",
-        credentials: "include",
-        headers: {
-          Accept: "application/json",
+      const response = await apiFetch(
+        "/auth/logout",
+        {
+          method: "POST",
+          credentials: "include",
+          headers: {
+            Accept: "application/json",
+          },
         },
-      });
+        false,
+      );
 
       const result = (await response
         .json()

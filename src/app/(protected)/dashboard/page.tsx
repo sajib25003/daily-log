@@ -22,7 +22,6 @@ const receiptTypes = [
 
 const roleLabels = {
   superAdmin: "Super Admin",
-  admin: "System Admin",
   owner: "Property Owner",
   tenant: "Tenant",
   user: "General User",
@@ -31,7 +30,7 @@ const roleLabels = {
 export default function DashboardPage() {
   const { user } = useAuth();
 
-  const hasGlobalAccess = user?.role === "superAdmin" || user?.role === "admin";
+  const hasGlobalAccess = user?.role === "superAdmin";
 
   const isPropertyManager = hasGlobalAccess || user?.role === "owner";
 
@@ -39,8 +38,7 @@ export default function DashboardPage() {
 
   const roleLabel = user?.role ? roleLabels[user.role] : "User";
 
-  const isManagementUser =
-    user?.role === "superAdmin" || user?.role === "admin";
+  const isManagementUser = user?.role === "superAdmin";
 
   const currentMonth = new Intl.DateTimeFormat("en-US", {
     month: "long",
@@ -131,7 +129,7 @@ export default function DashboardPage() {
                 title="User Management"
                 description={
                   user?.role === "superAdmin"
-                    ? "সকল admin, tenant এবং general user দেখুন ও পরিচালনা করুন।"
+                    ? "সকল owner, tenant এবং general user দেখুন ও পরিচালনা করুন।"
                     : "আপনার অধীনে থাকা tenant account দেখুন ও পরিচালনা করুন।"
                 }
                 href="/dashboard/users"
