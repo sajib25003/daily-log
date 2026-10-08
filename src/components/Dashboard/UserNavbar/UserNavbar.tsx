@@ -7,6 +7,7 @@ import type { IconType } from "react-icons";
 import {
   FaBolt,
   FaBuilding,
+  FaFileInvoiceDollar,
   FaHome,
   FaReceipt,
   FaUserPlus,
@@ -51,6 +52,14 @@ const navigationItems: NavigationItem[] = [
     href: "/dashboard/properties",
     icon: FaBuilding,
     roles: MANAGEMENT_ROLES,
+  },
+  {
+    id: "rent-bills",
+    label: "Rent Bills",
+    ownerLabel: "Rent Bills",
+    href: "/dashboard/rent-bills",
+    icon: FaFileInvoiceDollar,
+    roles: ["superAdmin", "owner", "tenant"],
   },
   {
     id: "rent-settings",
