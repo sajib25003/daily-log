@@ -9,8 +9,12 @@ if (isProduction && !configuredApiBaseUrl) {
 
 const apiBaseUrl = configuredApiBaseUrl ?? "http://localhost:4000/api/v1";
 const parsedApiUrl = new URL(apiBaseUrl);
+const isLoopbackApi = ["localhost", "127.0.0.1", "::1"].includes(
+  parsedApiUrl.hostname,
+);
+const isSecureProduction = isProduction && !isLoopbackApi;
 
-if (isProduction && parsedApiUrl.protocol !== "https:") {
+if (isSecureProduction && parsedApiUrl.protocol !== "https:") {
   throw new Error("NEXT_PUBLIC_API_BASE_URL must use HTTPS in production.");
 }
 
@@ -27,7 +31,7 @@ const contentSecurityPolicy = [
   "base-uri 'self'",
   "form-action 'self'",
   "frame-ancestors 'none'",
-  ...(isProduction ? ["upgrade-insecure-requests"] : []),
+  ...(isSecureProduction ? ["upgrade-insecure-requests"] : []),
 ].join("; ");
 
 const nextConfig: NextConfig = {
@@ -46,7 +50,7 @@ const nextConfig: NextConfig = {
             key: "Permissions-Policy",
             value: "camera=(), microphone=(), geolocation=(), payment=()",
           },
-          ...(isProduction
+          ...(isSecureProduction
             ? [
                 {
                   key: "Strict-Transport-Security",
