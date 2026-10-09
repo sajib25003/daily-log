@@ -40,7 +40,9 @@ body {
   }
 
   #rent-bill-print-area,
-  #rent-bill-print-area * {
+  #rent-bill-print-area *,
+  #property-ledger-report-print-area,
+  #property-ledger-report-print-area * {
     visibility: visible !important;
   }
 
@@ -59,6 +61,25 @@ body {
 
   .rent-bill-no-print {
     display: none !important;
+  }
+
+  #property-ledger-report-print-area {
+    position: absolute;
+    inset: 0;
+    box-sizing: border-box;
+    width: 210mm;
+    min-height: 297mm;
+    overflow: visible;
+    padding: 12mm;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: #ffffff !important;
+    color: #0f172a !important;
+  }
+
+  #property-ledger-report-print-area * {
+    border-color: #cbd5e1 !important;
+    color: #0f172a !important;
   }
 
   @page {
