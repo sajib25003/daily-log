@@ -56,6 +56,7 @@ export type ElectricityTariff = {
   effectiveTo?: string | null;
   lifeline: { maximumUnit: number; rate: number };
   slabs: ElectricityTariffSlab[];
+  demandChargePerKw?: number;
   vatPercentage: number;
   meterCharges: ElectricityMeterCharge[];
   isActive: boolean;
@@ -70,7 +71,8 @@ export type ElectricityCalculation = {
     effectiveTo?: string | null;
     lifeline: { maximumUnit: number; rate: number };
     slabs: ElectricityTariffSlab[];
-    vatPercentage: number;
+    demandChargePerKw?: number;
+  vatPercentage: number;
   };
   consumedUnit: number;
   breakdown: Array<{
@@ -80,6 +82,7 @@ export type ElectricityCalculation = {
     amount: number;
   }>;
   energyCharge: number;
+  demandCharge?: number;
   meterCharge: number;
   vatAmount: number;
   adjustmentAmount: number;

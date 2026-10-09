@@ -177,6 +177,7 @@ export const createElectricityTariff = (payload: {
   effectiveTo?: string | null;
   lifeline: { maximumUnit: number; rate: number };
   slabs: ElectricityTariffSlab[];
+  demandChargePerKw?: number;
   vatPercentage: number;
   meterCharges: ElectricityMeterCharge[];
 }) =>

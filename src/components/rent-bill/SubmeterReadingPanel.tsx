@@ -41,7 +41,11 @@ export default function SubmeterReadingPanel({
   const [current, setCurrent] = useState("");
   const [previousDate, setPreviousDate] = useState("");
   const [currentDate, setCurrentDate] = useState(today);
-  const [meterCharge, setMeterCharge] = useState("0");
+  const [meterCharge, setMeterCharge] = useState("");
+  const [meterPhase, setMeterPhase] = useState<"singlePhase" | "threePhase">(
+    "singlePhase",
+  );
+  const [connectedLoad, setConnectedLoad] = useState("");
   const [useAverageRate, setUseAverageRate] = useState(false);
   const [averageRate, setAverageRate] = useState("");
   const [adjustment, setAdjustment] = useState("0");
@@ -61,6 +65,12 @@ export default function SubmeterReadingPanel({
       .then((result) => {
         if (cancelled) return;
         setContext(result);
+        setMeterPhase(
+          result.existing?.meterPhase || result.meterPhase || "singlePhase",
+        );
+        setConnectedLoad(
+          String(result.existing?.connectedLoad ?? result.connectedLoad ?? ""),
+        );
         const [year, month] = billingPeriod.split("-").map(Number);
         const expectedPreviousPeriod = new Date(Date.UTC(year, month - 2, 1))
           .toISOString()
@@ -83,17 +93,16 @@ export default function SubmeterReadingPanel({
           setCurrent(String(reading.currentReading));
           setPreviousDate(reading.previousReadingDate || "");
           setCurrentDate(reading.currentReadingDate || "");
-          setMeterCharge(String(reading.calculation.meterCharge));
+          setMeterCharge(
+            reading.meterChargeOverride == null
+              ? ""
+              : String(reading.meterChargeOverride),
+          );
           setAdjustment(String(reading.calculation.adjustmentAmount));
         } else {
           if (result.previousReading !== null)
             setPrevious(String(result.previousReading));
           setPreviousDate(result.previousReadingDate || "");
-          if (
-            result.previousMeterCharge !== null &&
-            result.previousMeterCharge !== undefined
-          )
-            setMeterCharge(String(result.previousMeterCharge));
         }
       })
       .catch((err: unknown) => {
@@ -119,14 +128,9 @@ export default function SubmeterReadingPanel({
   const calculate = async (save: boolean) => {
     if (busy) return;
     if (
-      [
-        previous,
-        current,
-        meterCharge,
-        adjustment,
-        previousDate,
-        currentDate,
-      ].some((value) => value.trim() === "")
+      [previous, current, adjustment, previousDate, currentDate].some(
+        (value) => value.trim() === "",
+      )
     ) {
       setError("Both readings and both reading dates are required.");
       return;
@@ -140,7 +144,19 @@ export default function SubmeterReadingPanel({
       setError("Enter a valid positive average rate per unit.");
       return;
     }
+    if (
+      !useAverageRate &&
+      (!connectedLoad.trim() ||
+        !Number.isFinite(Number(connectedLoad)) ||
+        Number(connectedLoad) <= 0)
+    ) {
+      setError("Enter a valid sanctioned load in kW.");
+      return;
+    }
     const payload = {
+      ...(!useAverageRate
+        ? { meterPhase, connectedLoad: Number(connectedLoad) }
+        : {}),
       useAverageRate,
       averageRate: useAverageRate ? Number(averageRate) : null,
       apartmentId,
@@ -149,7 +165,7 @@ export default function SubmeterReadingPanel({
       currentReading: Number(current),
       previousReadingDate: previousDate,
       currentReadingDate: currentDate,
-      meterCharge: Number(meterCharge),
+      ...(meterCharge.trim() ? { meterCharge: Number(meterCharge) } : {}),
       adjustmentAmount: Number(adjustment),
       expectedRevision: record?.revision ?? (record ? 0 : null),
     };
@@ -340,15 +356,57 @@ export default function SubmeterReadingPanel({
           </div>
         )}
       </div>
+      {!useAverageRate && (
+        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+          <label className="text-xs text-slate-400">
+            Meter phase *
+            <select
+              aria-label="Meter phase"
+              value={meterPhase}
+              disabled={disabled}
+              className={inputClass}
+              onChange={(event) => {
+                setMeterPhase(
+                  event.target.value as "singlePhase" | "threePhase",
+                );
+                setCalculation(null);
+                setError("");
+                setMessage("");
+              }}
+            >
+              <option value="singlePhase">Single phase</option>
+              <option value="threePhase">Three phase</option>
+            </select>
+          </label>
+          <label className="text-xs text-slate-400">
+            Sanctioned / connected load (kW) *
+            <input
+              aria-label="Sanctioned load"
+              type="number"
+              min="0.01"
+              step="any"
+              value={connectedLoad}
+              disabled={disabled}
+              onChange={(event) => edit(setConnectedLoad, event.target.value)}
+              className={inputClass}
+            />
+          </label>
+        </div>
+      )}
       <details className="mt-4 text-xs text-slate-400">
         <summary className="cursor-pointer">Meter charge & adjustment</summary>
         <div className="mt-3 grid gap-4 sm:grid-cols-2">
           <label>
-            Meter charge (BDT)
+            Meter charge override (BDT, optional)
             <input
               type="number"
               min="0"
               step="0.01"
+              placeholder={
+                useAverageRate
+                  ? "Default: 0"
+                  : "Automatic from phase/load tariff"
+              }
               value={meterCharge}
               disabled={disabled}
               onChange={(event) => edit(setMeterCharge, event.target.value)}
@@ -401,10 +459,19 @@ export default function SubmeterReadingPanel({
             ))}
           </div>
           <p className="mt-3 text-slate-400">
-            Energy {money.format(calculation.energyCharge)} · Meter{" "}
+            Energy {money.format(calculation.energyCharge)} · Demand {money.format(calculation.demandCharge ?? 0)} · Meter rent{" "}
             {money.format(calculation.meterCharge)} · VAT{" "}
             {money.format(calculation.vatAmount)} · Adjustment{" "}
             {money.format(calculation.adjustmentAmount)}
+          </p>
+          <p className="mt-3 text-sm font-semibold text-indigo-300">
+            Average bill per unit:{" "}
+            {calculation.consumedUnit > 0
+              ? `৳${(calculation.totalAmount / calculation.consumedUnit).toFixed(4)}`
+              : "— (zero units)"}
+          </p>
+          <p className="mt-1 text-xs text-slate-400">
+            Total bill ÷ consumed units; demand charge, meter rent, VAT ও adjustment সহ।
           </p>
           <p className="mt-3 text-lg font-bold text-emerald-300">
             Electricity total: {money.format(calculation.totalAmount)}

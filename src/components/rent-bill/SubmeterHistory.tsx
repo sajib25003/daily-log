@@ -74,6 +74,7 @@ export default function SubmeterHistory({
                   "Previous date",
                   "Units",
                   "Bill amount",
+                  "Average bill / unit",
                   "Rent bill status",
                 ].map((label) => (
                   <th key={label} className="p-3">
@@ -114,6 +115,7 @@ export default function SubmeterHistory({
                         ? money.format(reading.calculation.totalAmount)
                         : ""}
                     </td>
+                    <td className="p-3">{reading && reading.consumedUnit > 0 ? `৳${(reading.calculation.totalAmount / reading.consumedUnit).toFixed(4)}` : reading ? "—" : ""}</td>
                     <td className="p-3 capitalize">
                       {reading?.status === "notBilled"
                         ? "Not billed"

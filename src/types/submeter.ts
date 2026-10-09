@@ -4,6 +4,9 @@ export type SubmeterReading = {
   apartmentId: string;
   billingPeriod: string;
   meterNumber: string;
+  meterPhase?: "singlePhase" | "threePhase" | null;
+  connectedLoad?: number | null;
+  meterChargeOverride?: number | null;
   useAverageRate?: boolean;
   averageRate?: number | null;
   previousReadingDate: string;
@@ -24,10 +27,15 @@ export type SubmeterContext = {
   previousPeriod: string | null;
   previousReadingDate: string | null;
   previousMeterCharge: number | null;
+  meterPhase: "singlePhase" | "threePhase" | null;
+  connectedLoad: number | null;
   existing: SubmeterReading | null;
   locked: boolean;
 };
 export type SubmeterPayload = {
+  meterPhase?: "singlePhase" | "threePhase" | null;
+  connectedLoad?: number | null;
+  meterChargeOverride?: number | null;
   useAverageRate?: boolean;
   averageRate?: number | null;
   previousReadingDate: string;
@@ -37,6 +45,6 @@ export type SubmeterPayload = {
   billingPeriod: string;
   previousReading: number;
   currentReading: number;
-  meterCharge: number;
+  meterCharge?: number;
   adjustmentAmount: number;
 };
