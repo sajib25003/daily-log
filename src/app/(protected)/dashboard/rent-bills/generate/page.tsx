@@ -2,6 +2,7 @@
 
 import ManagementModal from '@/components/property/ManagementModal';
 import RentBillFormFields from '@/components/rent-bill/RentBillFormFields';
+import SubmeterReadingPanel from '@/components/rent-bill/SubmeterReadingPanel';
 import { useAuth } from '@/context/AuthContext';
 import {
   listActiveOwners,
@@ -219,6 +220,10 @@ export default function GenerateRentBillPage() {
   const openPreview = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
+    if (context?.submeterRequired && !context.submeterReading) {
+      setError('Calculate and save the submeter reading before previewing the bill.');
+      return;
+    }
     if (form.items.some((item) => item.amount.trim() === '')) {
       setError('Enter an amount for every charge or remove the custom charge.');
       return;
@@ -412,7 +417,17 @@ export default function GenerateRentBillPage() {
               <Summary label="Apartment" value={context.apartment.apartmentNumber} />
             </section>
 
-            <RentBillFormFields form={form} setForm={setForm} />
+            {context.submeterRequired && <SubmeterReadingPanel
+              key={`${context.apartment.id}:${context.billingPeriod}`}
+              apartmentId={context.apartment.id}
+              billingPeriod={context.billingPeriod}
+              onSaved={(reading) => {
+                setContext((value) => value ? { ...value, submeterReading: reading } : value);
+                setForm((value) => ({ ...value, items: value.items.map((item) => item.key === 'ELECTRICITY' ? { ...item, amount: String(reading.calculation.totalAmount) } : item) }));
+                setError('');
+              }}
+            />}
+            <RentBillFormFields form={form} setForm={setForm} lockElectricity={context.submeterRequired} />
 
             <div className="flex justify-end">
               <button

@@ -55,6 +55,14 @@ const navigationItems: NavigationItem[] = [
     roles: MANAGEMENT_ROLES,
   },
   {
+    id: "submeter",
+    label: "Submeter Readings",
+    ownerLabel: "Submeter Readings",
+    href: "/dashboard/electricity/submeter",
+    icon: FaBolt,
+    roles: MANAGEMENT_ROLES,
+  },
+  {
     id: "rent-bills",
     label: "Rent Bills",
     ownerLabel: "Rent Bills",

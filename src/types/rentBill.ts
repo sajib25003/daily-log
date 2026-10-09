@@ -1,4 +1,5 @@
 import type { UserReference } from '@/types/property';
+import type { SubmeterReading } from '@/types/submeter';
 
 export type RentBillStatus = 'due' | 'paid' | 'void';
 export type RentBillItemType =
@@ -17,6 +18,7 @@ export type RentBillItem = {
 };
 
 export type RentBill = {
+  submeterReading?: SubmeterReading | null;
   _id: string;
   receiptNumber: string;
   billingPeriod: string;
@@ -83,6 +85,8 @@ export type RentBillGenerationItem = {
 };
 
 export type RentBillGenerationContext = {
+  submeterRequired?: boolean;
+  submeterReading?: SubmeterReading | null;
   billingPeriod: string;
   tenantAssignmentId: string;
   owner: { id: string; name: string; phone?: string | null };

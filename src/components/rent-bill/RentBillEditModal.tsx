@@ -68,6 +68,7 @@ export default function RentBillEditModal({ bill, onClose, onSaved }: Props) {
     >
       <form onSubmit={submit} className="space-y-5 p-5">
         <RentBillFormFields
+          lockElectricity={Boolean(bill.submeterReading)}
           form={form}
           setForm={setForm}
           disabled={isSaving}

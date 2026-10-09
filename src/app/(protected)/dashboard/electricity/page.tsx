@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import ManagementModal from '@/components/property/ManagementModal';
 import { useAuth } from '@/context/AuthContext';
 import { listProperties } from '@/lib/propertyApi';
@@ -410,6 +411,7 @@ export default function ElectricityPage() {
   return (
     <main className="min-h-screen bg-linear-to-br from-slate-950 via-slate-900 to-slate-950 px-4 py-7 text-slate-100 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-7xl">
+        <div className="mb-4 flex justify-end"><Link href="/dashboard/electricity/submeter" className="rounded-xl border border-amber-500/30 px-4 py-2.5 text-sm font-semibold text-amber-300">Submeter readings → Calculate & save</Link></div>
         <section className="rounded-3xl border border-amber-500/20 bg-linear-to-br from-slate-900 via-slate-900 to-amber-950/50 p-6 shadow-2xl sm:p-8">
           <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
             <div><p className="text-sm font-semibold text-amber-300">Utility configuration</p><h1 className="mt-2 text-3xl font-bold">Electricity</h1><p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300">Calculate residential bills from the effective tariff. Provider and tariff changes are restricted to SuperAdmin.</p></div>

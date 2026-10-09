@@ -254,3 +254,12 @@ export const updateApartmentChargeSettings = (
     method: 'PATCH',
     body: JSON.stringify({ chargeSettings: { charges } }),
   });
+
+export const getSubmeterContext = (apartmentId: string, billingPeriod: string) => {
+  const params = new URLSearchParams({ apartmentId, billingPeriod });
+  return request<import('@/types/submeter').SubmeterContext>(`/electricity/submeter/context?${params}`);
+};
+export const previewSubmeterReading = (reading: import('@/types/submeter').SubmeterPayload) =>
+  request<ElectricityCalculation>('/electricity/submeter/preview', { method: 'POST', body: JSON.stringify({ reading }) });
+export const saveSubmeterReading = (reading: import('@/types/submeter').SubmeterPayload) =>
+  request<import('@/types/submeter').SubmeterReading>('/electricity/submeter/readings', { method: 'POST', body: JSON.stringify({ reading }) });

@@ -10,12 +10,14 @@ type Props = {
   form: RentBillFormPayload;
   setForm: React.Dispatch<React.SetStateAction<RentBillFormPayload>>;
   disabled?: boolean;
+  lockElectricity?: boolean;
 };
 
 export default function RentBillFormFields({
   form,
   setForm,
   disabled = false,
+  lockElectricity = false,
 }: Props) {
   const subtotal = form.items.reduce((total, item) => {
     const amount = Number(item.amount);
@@ -101,6 +103,7 @@ export default function RentBillFormFields({
                   step="0.01"
                   required
                   value={item.amount}
+                  readOnly={lockElectricity && item.key === 'ELECTRICITY'}
                   onChange={(event) =>
                     setForm((current) => ({
                       ...current,
@@ -112,6 +115,7 @@ export default function RentBillFormFields({
                     }))
                   }
                   disabled={disabled}
+                  title={lockElectricity && item.key === 'ELECTRICITY' ? 'Calculated from the saved submeter reading. Use adjustment for corrections.' : undefined}
                   placeholder={item.type === 'variable' ? 'Enter this month' : '0'}
                   className={inputClassName}
                 />
