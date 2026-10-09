@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import type { IconType } from "react-icons";
 import {
   FaBolt,
+  FaBookOpen,
   FaBuilding,
   FaFileInvoiceDollar,
   FaHome,
@@ -60,6 +61,14 @@ const navigationItems: NavigationItem[] = [
     href: "/dashboard/rent-bills",
     icon: FaFileInvoiceDollar,
     roles: ["superAdmin", "owner", "tenant"],
+  },
+  {
+    id: "property-ledger",
+    label: "Property Ledger",
+    ownerLabel: "Property Ledger",
+    href: "/dashboard/property-ledger",
+    icon: FaBookOpen,
+    roles: MANAGEMENT_ROLES,
   },
   {
     id: "rent-settings",
