@@ -84,7 +84,7 @@ const inputClassName =
   'w-full rounded-xl border border-slate-700 bg-slate-950/70 px-4 py-3 text-sm text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 disabled:cursor-not-allowed disabled:opacity-60';
 
 const getTenantFromTenancy = (tenancy?: Tenancy | null) =>
-  tenancy && typeof tenancy.tenantId === 'object'
+  tenancy?.tenantId && typeof tenancy.tenantId === 'object'
     ? tenancy.tenantId
     : undefined;
 

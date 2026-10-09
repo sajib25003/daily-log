@@ -51,13 +51,13 @@ const emptyForm: RentBillFormPayload = {
 
 const getTenancyLabel = (tenancy: Tenancy) => {
   const apartment =
-    typeof tenancy.apartmentId === 'object'
+    tenancy.apartmentId && typeof tenancy.apartmentId === 'object'
       ? tenancy.apartmentId.apartmentNumber
       : 'Apartment';
   const tenant =
-    typeof tenancy.tenantId === 'object'
+    tenancy.tenantId && typeof tenancy.tenantId === 'object'
       ? formatUserName(tenancy.tenantId.name)
-      : 'Tenant';
+      : tenancy.tenantId ? 'Tenant' : 'Tenant unavailable';
   return `${apartment} — ${tenant}${tenancy.status === 'ended' ? ' (Ended)' : ''}`;
 };
 
@@ -360,7 +360,7 @@ export default function GenerateRentBillPage() {
             >
               <option value="">Select a tenant assignment</option>
               {tenancies.map((tenancy) => (
-                <option key={tenancy._id} value={tenancy._id}>
+                <option key={tenancy._id} value={tenancy._id} disabled={!tenancy.tenantId || !tenancy.apartmentId || !tenancy.propertyId || !tenancy.ownerId}>
                   {getTenancyLabel(tenancy)}
                 </option>
               ))}

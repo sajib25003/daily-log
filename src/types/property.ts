@@ -168,7 +168,7 @@ export type Tenancy = {
         Property,
         '_id' | 'name' | 'address' | 'ownerId' | 'electricitySettings'
       >;
-  tenantId: string | UserReference;
+  tenantId: string | UserReference | null;
   ownerId: string | UserReference;
   startDate: string;
   endDate?: string | null;
