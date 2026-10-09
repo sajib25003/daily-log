@@ -4,6 +4,8 @@ export type SubmeterReading = {
   apartmentId: string;
   billingPeriod: string;
   meterNumber: string;
+  useAverageRate?: boolean;
+  averageRate?: number | null;
   previousReadingDate: string;
   currentReadingDate: string;
   revision?: number;
@@ -26,6 +28,8 @@ export type SubmeterContext = {
   locked: boolean;
 };
 export type SubmeterPayload = {
+  useAverageRate?: boolean;
+  averageRate?: number | null;
   previousReadingDate: string;
   currentReadingDate: string;
   expectedRevision?: number | null;

@@ -64,7 +64,7 @@ export type ElectricityTariff = {
 
 export type ElectricityCalculation = {
   tariff: {
-    id: string;
+    id: string | null;
     name: string;
     effectiveFrom: string;
     effectiveTo?: string | null;

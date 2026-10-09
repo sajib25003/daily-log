@@ -42,6 +42,8 @@ export default function SubmeterReadingPanel({
   const [previousDate, setPreviousDate] = useState("");
   const [currentDate, setCurrentDate] = useState(today);
   const [meterCharge, setMeterCharge] = useState("0");
+  const [useAverageRate, setUseAverageRate] = useState(false);
+  const [averageRate, setAverageRate] = useState("");
   const [adjustment, setAdjustment] = useState("0");
   const [calculation, setCalculation] = useState<ElectricityCalculation | null>(
     null,
@@ -71,6 +73,10 @@ export default function SubmeterReadingPanel({
         );
         if (result.existing) {
           const reading = result.existing;
+          setUseAverageRate(reading.useAverageRate ?? false);
+          setAverageRate(
+            reading.averageRate == null ? "" : String(reading.averageRate),
+          );
           setRecord(reading);
           setCalculation(reading.calculation);
           setPrevious(String(reading.previousReading));
@@ -125,7 +131,18 @@ export default function SubmeterReadingPanel({
       setError("Both readings and both reading dates are required.");
       return;
     }
+    if (
+      useAverageRate &&
+      (!averageRate.trim() ||
+        !Number.isFinite(Number(averageRate)) ||
+        Number(averageRate) <= 0)
+    ) {
+      setError("Enter a valid positive average rate per unit.");
+      return;
+    }
     const payload = {
+      useAverageRate,
+      averageRate: useAverageRate ? Number(averageRate) : null,
       apartmentId,
       billingPeriod,
       previousReading: Number(previous),
@@ -285,6 +302,44 @@ export default function SubmeterReadingPanel({
           )}
         </div>
       )}
+      <div className="mt-4 rounded-xl border border-slate-700 p-4">
+        <label className="flex items-center gap-3 text-sm text-slate-200">
+          <input
+            type="checkbox"
+            checked={useAverageRate}
+            disabled={disabled}
+            onChange={(event) => {
+              setUseAverageRate(event.target.checked);
+              setCalculation(null);
+              setError("");
+              setMessage("");
+            }}
+          />
+          Use average rate (manual)
+        </label>
+        {useAverageRate && (
+          <div className="mt-3">
+            <label className="text-xs text-slate-400">
+              Average rate per unit (BDT) *
+              <input
+                aria-label="Average rate per unit"
+                type="number"
+                min="0.0001"
+                step="any"
+                value={averageRate}
+                disabled={disabled}
+                onChange={(event) => edit(setAverageRate, event.target.value)}
+                className={inputClass}
+              />
+            </label>
+            <p className="mt-2 text-xs leading-5 text-slate-400">
+              Consumed units × আপনার দেওয়া rate। এই rate-এ VAT সহ মোট unit cost
+              দিন; আলাদা VAT যোগ হবে না। Meter charge ও adjustment দিলে সেগুলো
+              আলাদা যোগ হবে।
+            </p>
+          </div>
+        )}
+      </div>
       <details className="mt-4 text-xs text-slate-400">
         <summary className="cursor-pointer">Meter charge & adjustment</summary>
         <div className="mt-3 grid gap-4 sm:grid-cols-2">
