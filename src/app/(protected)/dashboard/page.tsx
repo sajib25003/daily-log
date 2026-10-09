@@ -163,7 +163,7 @@ export default function DashboardPage() {
         )}
 
         {/* Receipt section */}
-        {isPropertyManager && (
+        {user?.role === "superAdmin" && (
           <section className="mt-10">
             <SectionHeading
               title="Create Receipt"

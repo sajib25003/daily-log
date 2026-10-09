@@ -140,7 +140,7 @@ const NavBar = () => {
         </Link>
 
         {/* Main navigation */}
-        <nav className="order-3 flex w-full items-center justify-center gap-1 rounded-xl border border-slate-700/60 bg-slate-900/80 p-1 md:order-2 md:w-auto">
+        <nav className="order-3 hidden flex w-full items-center justify-center gap-1 rounded-xl border border-slate-700/60 bg-slate-900/80 p-1 md:order-2 md:w-auto">
           <Link
             href="/dashboard"
             onClick={() => setOpenMenu(null)}
