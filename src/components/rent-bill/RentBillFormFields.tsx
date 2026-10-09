@@ -101,7 +101,7 @@ export default function RentBillFormFields({
                   type="number"
                   min="0"
                   step="0.01"
-                  required
+                  required={item.key !== 'ELECTRICITY'}
                   value={item.amount}
                   readOnly={lockElectricity && item.key === 'ELECTRICITY'}
                   onChange={(event) =>

@@ -50,7 +50,7 @@ const normalizeBillForm = (form: RentBillFormPayload) => ({
     categoryId: item.categoryId || null,
     key: item.key,
     label: item.label.trim(),
-    amount: Number(item.amount),
+    amount: item.key === 'ELECTRICITY' && item.amount.trim() === '' ? null : Number(item.amount),
     type: item.type,
   })),
   adjustmentAmount: Number(form.adjustmentAmount || 0),

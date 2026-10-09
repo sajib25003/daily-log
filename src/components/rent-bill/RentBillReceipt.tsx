@@ -197,7 +197,7 @@ export default function RentBillReceipt({
                   {getItemLabel(item.key, item.label, language)}
                 </td>
                 <td className="px-4 py-3 text-right font-medium">
-                  {formatMoney(item.amount, language)}
+                  {item.amount === null ? '' : formatMoney(item.amount, language)}
                 </td>
               </tr>
             ))}
@@ -255,7 +255,7 @@ export default function RentBillReceipt({
 
       {bill.submeterReading && <section className="mt-5 rounded-xl border border-slate-300 p-4 text-xs text-slate-700">
         <p className="font-bold">{language === 'bn' ? 'সাবমিটার হিসাব' : 'Submeter calculation'} · {bill.submeterReading.meterNumber}</p>
-        <p className="mt-2">{bill.submeterReading.currentReading} − {bill.submeterReading.previousReading} = {bill.submeterReading.consumedUnit} {language === 'bn' ? 'ইউনিট' : 'units'}</p>
+        <p className="mt-2">{bill.submeterReading.currentReadingDate || '—'}: {bill.submeterReading.currentReading} − {bill.submeterReading.previousReadingDate || '—'}: {bill.submeterReading.previousReading} = {bill.submeterReading.consumedUnit} {language === 'bn' ? 'ইউনিট' : 'units'}</p>
         <p className="mt-2">{bill.submeterReading.calculation.tariff.name} · VAT {bill.submeterReading.calculation.tariff.vatPercentage}% · {formatMoney(bill.submeterReading.calculation.totalAmount, language)}</p>
       </section>}
 

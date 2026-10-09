@@ -1,5 +1,6 @@
 'use client';
 
+import SubmeterHistory from '@/components/rent-bill/SubmeterHistory';
 import SubmeterReadingPanel from '@/components/rent-bill/SubmeterReadingPanel';
 import { useAuth } from '@/context/AuthContext';
 import {
@@ -36,6 +37,7 @@ export default function SubmeterPage() {
   const [period, setPeriod] = useState(currentPeriod);
   const [error, setError] = useState('');
   const [savedMessage, setSavedMessage] = useState('');
+  const [historyRefresh, setHistoryRefresh] = useState(0);
 
   useEffect(() => {
     if (!isSuperAdmin) return;
@@ -232,13 +234,26 @@ export default function SubmeterPage() {
               key={`${apartmentId}:${period}`}
               apartmentId={apartmentId}
               billingPeriod={period}
-              onSaved={() =>
+              onSaved={(reading) => {
                 setSavedMessage(
-                  'Apartment reading saved. It will be available when generating this month’s rent bill.',
-                )
-              }
+                  reading.syncWarning ||
+                    'Apartment bill saved. This month’s rent details update automatically.',
+                );
+                setHistoryRefresh((value) => value + 1);
+              }}
             />
           </div>
+        )}
+        {apartmentId && period && (
+          <SubmeterHistory
+            apartmentId={apartmentId}
+            year={Number(period.slice(0, 4))}
+            refresh={historyRefresh}
+            onSelect={(value) => {
+              setPeriod(value);
+              setSavedMessage('');
+            }}
+          />
         )}
         {savedMessage && (
           <p role="status" className="mt-4 text-sm text-emerald-300">

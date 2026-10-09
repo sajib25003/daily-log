@@ -1,21 +1,30 @@
-'use client';
+"use client";
 
 import {
   getSubmeterContext,
   previewSubmeterReading,
   saveSubmeterReading,
-} from '@/lib/rentApi';
-import type { ElectricityCalculation } from '@/types/billing';
-import type { SubmeterContext, SubmeterReading } from '@/types/submeter';
-import { useEffect, useRef, useState } from 'react';
+} from "@/lib/rentApi";
+import type { ElectricityCalculation } from "@/types/billing";
+import type { SubmeterContext, SubmeterReading } from "@/types/submeter";
+import { useEffect, useRef, useState } from "react";
 
-const money = new Intl.NumberFormat('en-BD', {
-  style: 'currency',
-  currency: 'BDT',
+const money = new Intl.NumberFormat("en-BD", {
+  style: "currency",
+  currency: "BDT",
   maximumFractionDigits: 2,
 });
 const inputClass =
-  'mt-2 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2.5 text-sm text-slate-100 disabled:opacity-50';
+  "mt-2 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2.5 text-sm text-slate-100 disabled:opacity-50";
+const today = () => {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Dhaka",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+  return `${parts.find((part) => part.type === "year")?.value}-${parts.find((part) => part.type === "month")?.value}-${parts.find((part) => part.type === "day")?.value}`;
+};
 
 export default function SubmeterReadingPanel({
   apartmentId,
@@ -28,16 +37,20 @@ export default function SubmeterReadingPanel({
 }) {
   const mounted = useRef(true);
   const [context, setContext] = useState<SubmeterContext | null>(null);
-  const [previous, setPrevious] = useState('');
-  const [current, setCurrent] = useState('');
-  const [meterCharge, setMeterCharge] = useState('0');
-  const [adjustment, setAdjustment] = useState('0');
+  const [previous, setPrevious] = useState("");
+  const [current, setCurrent] = useState("");
+  const [previousDate, setPreviousDate] = useState("");
+  const [currentDate, setCurrentDate] = useState(today);
+  const [meterCharge, setMeterCharge] = useState("0");
+  const [adjustment, setAdjustment] = useState("0");
   const [calculation, setCalculation] = useState<ElectricityCalculation | null>(
     null,
   );
-  const [saved, setSaved] = useState<SubmeterReading | null>(null);
+  const [record, setRecord] = useState<SubmeterReading | null>(null);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+  const [showPrevious, setShowPrevious] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -46,17 +59,35 @@ export default function SubmeterReadingPanel({
       .then((result) => {
         if (cancelled) return;
         setContext(result);
+        const [year, month] = billingPeriod.split("-").map(Number);
+        const expectedPreviousPeriod = new Date(Date.UTC(year, month - 2, 1))
+          .toISOString()
+          .slice(0, 7);
+        setShowPrevious(
+          result.existing
+            ? !result.existing.previousReadingDate
+            : result.previousPeriod !== expectedPreviousPeriod ||
+                !result.previousReadingDate,
+        );
         if (result.existing) {
-          setSaved(result.existing);
-          setCalculation(result.existing.calculation);
-          setPrevious(String(result.existing.previousReading));
-          setCurrent(String(result.existing.currentReading));
-          setMeterCharge(String(result.existing.calculation.meterCharge));
-          setAdjustment(String(result.existing.calculation.adjustmentAmount));
-        } else if (
-          result.previousReading !== null
-        ) {
-          setPrevious(String(result.previousReading));
+          const reading = result.existing;
+          setRecord(reading);
+          setCalculation(reading.calculation);
+          setPrevious(String(reading.previousReading));
+          setCurrent(String(reading.currentReading));
+          setPreviousDate(reading.previousReadingDate || "");
+          setCurrentDate(reading.currentReadingDate || "");
+          setMeterCharge(String(reading.calculation.meterCharge));
+          setAdjustment(String(reading.calculation.adjustmentAmount));
+        } else {
+          if (result.previousReading !== null)
+            setPrevious(String(result.previousReading));
+          setPreviousDate(result.previousReadingDate || "");
+          if (
+            result.previousMeterCharge !== null &&
+            result.previousMeterCharge !== undefined
+          )
+            setMeterCharge(String(result.previousMeterCharge));
         }
       })
       .catch((err: unknown) => {
@@ -64,7 +95,7 @@ export default function SubmeterReadingPanel({
           setError(
             err instanceof Error
               ? err.message
-              : 'Failed to load submeter readings.',
+              : "Failed to load submeter readings.",
           );
       });
     return () => {
@@ -73,24 +104,25 @@ export default function SubmeterReadingPanel({
     };
   }, [apartmentId, billingPeriod]);
 
-  const hasPrevious =
-    context?.previousReading !== null && context?.previousReading !== undefined;
-  const disabled =
-    busy || Boolean(saved) || Boolean(context?.locked) || !context;
-  const consumed =
-    previous.trim() && current.trim()
-      ? Number((Number(current) - Number(previous)).toFixed(2))
-      : null;
-
+  const edit = (setter: (value: string) => void, value: string) => {
+    setter(value);
+    setCalculation(null);
+    setError("");
+    setMessage("");
+  };
   const calculate = async (save: boolean) => {
     if (busy) return;
     if (
-      previous.trim() === '' ||
-      current.trim() === '' ||
-      meterCharge.trim() === '' ||
-      adjustment.trim() === ''
+      [
+        previous,
+        current,
+        meterCharge,
+        adjustment,
+        previousDate,
+        currentDate,
+      ].some((value) => value.trim() === "")
     ) {
-      setError('Enter both readings, meter charge and adjustment.');
+      setError("Both readings and both reading dates are required.");
       return;
     }
     const payload = {
@@ -98,25 +130,33 @@ export default function SubmeterReadingPanel({
       billingPeriod,
       previousReading: Number(previous),
       currentReading: Number(current),
+      previousReadingDate: previousDate,
+      currentReadingDate: currentDate,
       meterCharge: Number(meterCharge),
       adjustmentAmount: Number(adjustment),
+      expectedRevision: record?.revision ?? (record ? 0 : null),
     };
     if (
       Object.values(payload).some(
-        (value) => typeof value === 'number' && !Number.isFinite(value),
+        (value) => typeof value === "number" && !Number.isFinite(value),
       )
     ) {
-      setError('Enter valid numbers.');
+      setError("Enter valid numbers.");
       return;
     }
     setBusy(true);
-    setError('');
+    setError("");
+    setMessage("");
     try {
       if (save) {
         const result = await saveSubmeterReading(payload);
         if (!mounted.current) return;
-        setSaved(result);
+        setRecord(result);
         setCalculation(result.calculation);
+        setMessage(
+          result.syncWarning ||
+            `Reading saved. ${result.syncedRentBills ?? 0} existing due rent bill(s) updated automatically.`,
+        );
         onSaved(result);
       } else {
         const result = await previewSubmeterReading(payload);
@@ -127,27 +167,26 @@ export default function SubmeterReadingPanel({
         setError(
           err instanceof Error
             ? err.message
-            : 'Failed to calculate submeter bill.',
+            : "Failed to calculate submeter bill.",
         );
     } finally {
       if (mounted.current) setBusy(false);
     }
   };
-  const edit = (setter: (value: string) => void, value: string) => {
-    setter(value);
-    setCalculation(null);
-    setError('');
-  };
+  const disabled = busy || !context;
+  const consumed =
+    previous.trim() && current.trim()
+      ? Number((Number(current) - Number(previous)).toFixed(2))
+      : null;
 
   return (
     <section className="rounded-2xl border border-amber-500/25 bg-slate-900/80 p-5">
       <h2 className="text-lg font-bold text-amber-300">
-        Submeter Reading · {billingPeriod}
+        Submeter Bill · {billingPeriod}
       </h2>
       <p className="mt-2 text-sm leading-6 text-slate-400">
-        বর্তমান reading − আগের reading = consumed units। Property provider-এর এই
-        billing month-এর শুরুতে কার্যকর tariff দিয়ে হিসাব হবে। Meter charge
-        আলাদা করে দিন; default 0।
+        Billing month আলাদা। Reading পরের মাসের ১ তারিখে হলেও selected month-এর
+        bill হবে। Consumption = current − previous reading।
       </p>
       {context && (
         <p className="mt-2 text-xs text-slate-400">
@@ -158,55 +197,25 @@ export default function SubmeterReadingPanel({
       )}
       {!context && !error && (
         <p role="status" className="mt-3 text-sm text-slate-400">
-          Loading previous reading…
+          Loading readings…
         </p>
       )}
-      {context && !hasPrevious && !saved && (
-        <p className="mt-3 text-sm text-amber-200">
-          এই meter-এর প্রথম reading হলে opening reading দিন। Tenant বদলালেও
-          meter reading চলমান থাকবে।
-        </p>
-      )}
-      {context?.previousPeriod &&
-        hasPrevious &&
-        context.previousPeriod !==
-          new Date(
-            Date.UTC(
-              Number(billingPeriod.slice(0, 4)),
-              Number(billingPeriod.slice(5, 7)) - 2,
-              1,
-            ),
-          )
-            .toISOString()
-            .slice(0, 7) && (
-          <p className="mt-3 text-sm text-amber-200">
-            মাঝে reading নেই। এই calculation-এ শেষ saved reading থেকে পুরো
-            consumption ধরা হবে; missed month আলাদা bill করতে হলে আগে সেই মাসের
-            reading দিন।
-          </p>
-        )}
-      {context?.locked && !saved && (
-        <p role="alert" className="mt-3 text-sm text-amber-200">
-          এই মাসের rent bill বা পরের মাসের reading আছে। এখানে নতুন reading save
-          করা যাবে না।
-        </p>
-      )}
-      <div className="mt-4 grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div className="mt-4 grid gap-4 sm:grid-cols-2">
         <label className="text-xs text-slate-400">
-          Previous / opening reading
+          Current reading date *
           <input
-            aria-label="Previous reading"
-            type="number"
-            min="0"
-            step="0.01"
-            value={previous}
-            disabled={disabled || Boolean(hasPrevious)}
-            onChange={(event) => edit(setPrevious, event.target.value)}
+            aria-label="Current reading date"
+            type="date"
+            min={previousDate || undefined}
+            max={today()}
+            value={currentDate}
+            disabled={disabled}
+            onChange={(event) => edit(setCurrentDate, event.target.value)}
             className={inputClass}
           />
         </label>
         <label className="text-xs text-slate-400">
-          Current reading
+          Current reading *
           <input
             aria-label="Current reading"
             type="number"
@@ -218,35 +227,95 @@ export default function SubmeterReadingPanel({
             className={inputClass}
           />
         </label>
-        <label className="text-xs text-slate-400">
-          Meter charge (BDT)
-          <input
-            aria-label="Meter charge"
-            type="number"
-            min="0"
-            step="0.01"
-            value={meterCharge}
-            disabled={disabled}
-            onChange={(event) => edit(setMeterCharge, event.target.value)}
-            className={inputClass}
-          />
-        </label>
-        <label className="text-xs text-slate-400">
-          Adjustment (BDT)
-          <input
-            aria-label="Electricity adjustment"
-            type="number"
-            step="0.01"
-            value={adjustment}
-            disabled={disabled}
-            onChange={(event) => edit(setAdjustment, event.target.value)}
-            className={inputClass}
-          />
-        </label>
       </div>
+      {context && (
+        <div className="mt-4 rounded-xl border border-slate-700 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-sm text-slate-300">
+              Previous reading: {previous || "Not set"} · Date:{" "}
+              {previousDate || "Not set"}
+            </p>
+            <button
+              type="button"
+              onClick={() => setShowPrevious((value) => !value)}
+              className="text-xs font-semibold text-indigo-300 underline"
+            >
+              {showPrevious
+                ? "Hide previous reading fields"
+                : "Add / update previous reading"}
+            </button>
+          </div>
+          {showPrevious && (
+            <>
+              <p className="mt-3 text-xs leading-5 text-amber-200">
+                আগের মাসের reading না থাকলে, অনেক পুরোনো হলে বা correction দরকার
+                হলে এখানে সঠিক previous reading ও date দিন। আগের record বদলাবে
+                না; এই মাসের baseline হিসেবেই save হবে।
+              </p>
+              <div className="mt-3 grid gap-4 sm:grid-cols-2">
+                <label className="text-xs text-slate-400">
+                  Previous / opening reading *
+                  <input
+                    aria-label="Previous reading"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={previous}
+                    disabled={disabled}
+                    onChange={(event) => edit(setPrevious, event.target.value)}
+                    className={inputClass}
+                  />
+                </label>
+                <label className="text-xs text-slate-400">
+                  Previous reading date *
+                  <input
+                    aria-label="Previous reading date"
+                    type="date"
+                    max={currentDate || today()}
+                    value={previousDate}
+                    disabled={disabled}
+                    onChange={(event) =>
+                      edit(setPreviousDate, event.target.value)
+                    }
+                    className={inputClass}
+                  />
+                </label>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+      <details className="mt-4 text-xs text-slate-400">
+        <summary className="cursor-pointer">Meter charge & adjustment</summary>
+        <div className="mt-3 grid gap-4 sm:grid-cols-2">
+          <label>
+            Meter charge (BDT)
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              value={meterCharge}
+              disabled={disabled}
+              onChange={(event) => edit(setMeterCharge, event.target.value)}
+              className={inputClass}
+            />
+          </label>
+          <label>
+            Adjustment (BDT)
+            <input
+              type="number"
+              step="0.01"
+              value={adjustment}
+              disabled={disabled}
+              onChange={(event) => edit(setAdjustment, event.target.value)}
+              className={inputClass}
+            />
+          </label>
+        </div>
+      </details>
       {consumed !== null && (
         <p
-          className={`mt-3 text-sm ${consumed < 0 ? 'text-red-300' : 'text-slate-300'}`}
+          className={`mt-3 text-sm ${consumed < 0 ? "text-red-300" : "text-slate-300"}`}
         >
           Consumed units: {consumed}
         </p>
@@ -254,6 +323,11 @@ export default function SubmeterReadingPanel({
       {error && (
         <p role="alert" className="mt-3 text-sm text-red-300">
           {error}
+        </p>
+      )}
+      {message && (
+        <p role="status" className="mt-3 text-sm text-emerald-300">
+          {message}
         </p>
       )}
       {calculation && (
@@ -272,9 +346,9 @@ export default function SubmeterReadingPanel({
             ))}
           </div>
           <p className="mt-3 text-slate-400">
-            Energy {money.format(calculation.energyCharge)} · Meter{' '}
-            {money.format(calculation.meterCharge)} · VAT{' '}
-            {money.format(calculation.vatAmount)} · Adjustment{' '}
+            Energy {money.format(calculation.energyCharge)} · Meter{" "}
+            {money.format(calculation.meterCharge)} · VAT{" "}
+            {money.format(calculation.vatAmount)} · Adjustment{" "}
             {money.format(calculation.adjustmentAmount)}
           </p>
           <p className="mt-3 text-lg font-bold text-emerald-300">
@@ -283,44 +357,26 @@ export default function SubmeterReadingPanel({
         </div>
       )}
       <div className="mt-4 flex flex-wrap gap-3">
-        {saved ? (
-          <>
-            <p role="status" className="text-sm text-emerald-300">
-              Apartment reading saved. এই হিসাব rent bill ও receipt-এ থাকবে।
-            </p>
-            <button
-              type="button"
-              onClick={() => onSaved(saved)}
-              className="rounded-xl border border-emerald-600 px-4 py-2 text-sm text-emerald-300"
-            >
-              Apply saved amount
-            </button>
-          </>
-        ) : (
-          <>
-            <button
-              type="button"
-              disabled={disabled}
-              onClick={() => void calculate(false)}
-              className="rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold disabled:opacity-50"
-            >
-              {busy ? 'Processing…' : 'Calculate'}
-            </button>
-            <button
-              type="button"
-              disabled={disabled || !calculation}
-              onClick={() => void calculate(true)}
-              className="rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold disabled:opacity-50"
-            >
-              Save apartment reading
-            </button>
-          </>
-        )}
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={() => void calculate(false)}
+          className="rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold disabled:opacity-50"
+        >
+          {busy ? "Processing…" : "Calculate"}
+        </button>
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={() => void calculate(true)}
+          className="rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold disabled:opacity-50"
+        >
+          {record ? "Update apartment bill" : "Save apartment bill"}
+        </button>
       </div>
       <p className="mt-3 text-xs leading-5 text-slate-500">
-        Save করার পর reading বদলানো যাবে না। Bill-এ প্রয়োজন হলে adjustment দিন।
-        এটি submeter-এর consumption অনুযায়ী হিসাব; main meter bill ভাগ করার
-        হিসাব নয়।
+        এই apartment ও billing month-এর electricity amount rent bill-এ
+        automatically যুক্ত হবে। Paid receipt-এর আগের হিসাব অপরিবর্তিত থাকবে।
       </p>
     </section>
   );

@@ -220,11 +220,7 @@ export default function GenerateRentBillPage() {
   const openPreview = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    if (context?.submeterRequired && !context.submeterReading) {
-      setError('Calculate and save the submeter reading before previewing the bill.');
-      return;
-    }
-    if (form.items.some((item) => item.amount.trim() === '')) {
+    if (form.items.some((item) => item.amount.trim() === '' && item.key !== 'ELECTRICITY')) {
       setError('Enter an amount for every charge or remove the custom charge.');
       return;
     }
@@ -464,7 +460,7 @@ export default function GenerateRentBillPage() {
                 <div key={item.key} className="flex justify-between gap-4 px-4 py-3 text-sm">
                   <span className="text-slate-300">{item.label}</span>
                   <span className="font-semibold text-slate-100">
-                    ৳{Number(item.amount).toLocaleString('en-BD')}
+                    {item.amount.trim() === '' ? '' : `৳${Number(item.amount).toLocaleString('en-BD')}`}
                   </span>
                 </div>
               ))}

@@ -263,3 +263,8 @@ export const previewSubmeterReading = (reading: import('@/types/submeter').Subme
   request<ElectricityCalculation>('/electricity/submeter/preview', { method: 'POST', body: JSON.stringify({ reading }) });
 export const saveSubmeterReading = (reading: import('@/types/submeter').SubmeterPayload) =>
   request<import('@/types/submeter').SubmeterReading>('/electricity/submeter/readings', { method: 'POST', body: JSON.stringify({ reading }) });
+
+export const listSubmeterReadings = (apartmentId: string, year: number) => {
+  const params = new URLSearchParams({ apartmentId, year: String(year) });
+  return request<import('@/types/submeter').SubmeterReading[]>(`/electricity/submeter/readings?${params}`);
+};

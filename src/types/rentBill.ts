@@ -13,11 +13,12 @@ export type RentBillItem = {
   categoryId?: string | null;
   key: string;
   label: string;
-  amount: number;
+  amount: number | null;
   type: RentBillItemType;
 };
 
 export type RentBill = {
+  submeterManaged?: boolean;
   submeterReading?: SubmeterReading | null;
   _id: string;
   receiptNumber: string;

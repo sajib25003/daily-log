@@ -21,7 +21,7 @@ export default function RentBillEditModal({ bill, onClose, onSaved }: Props) {
       categoryId: item.categoryId ?? null,
       key: item.key,
       label: item.label,
-      amount: String(item.amount),
+      amount: item.amount === null ? '' : String(item.amount),
       type: item.type,
     })),
     adjustmentAmount: String(bill.adjustmentAmount),
@@ -36,7 +36,7 @@ export default function RentBillEditModal({ bill, onClose, onSaved }: Props) {
     event.preventDefault();
     if (isSaving) return;
 
-    if (form.items.some((item) => item.amount.trim() === '')) {
+    if (form.items.some((item) => item.amount.trim() === '' && item.key !== 'ELECTRICITY')) {
       setError('Enter an amount for every charge.');
       return;
     }
@@ -68,7 +68,7 @@ export default function RentBillEditModal({ bill, onClose, onSaved }: Props) {
     >
       <form onSubmit={submit} className="space-y-5 p-5">
         <RentBillFormFields
-          lockElectricity={Boolean(bill.submeterReading)}
+          lockElectricity={Boolean(bill.submeterManaged || bill.submeterReading)}
           form={form}
           setForm={setForm}
           disabled={isSaving}
