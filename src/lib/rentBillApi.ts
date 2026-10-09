@@ -1,4 +1,4 @@
-import { apiFetch } from '@/lib/apiClient';
+import { apiFetch } from "@/lib/apiClient";
 import type {
   PaymentMethod,
   RentBill,
@@ -6,7 +6,7 @@ import type {
   RentBillGenerationContext,
   RentBillListData,
   RentBillStatus,
-} from '@/types/rentBill';
+} from "@/types/rentBill";
 
 type ApiResponse<T> = {
   success?: boolean;
@@ -20,26 +20,26 @@ const request = async <T>(
   options: RequestInit = {},
 ): Promise<T> => {
   const headers = new Headers(options.headers);
-  headers.set('Accept', 'application/json');
-  if (options.body) headers.set('Content-Type', 'application/json');
+  headers.set("Accept", "application/json");
+  if (options.body) headers.set("Content-Type", "application/json");
 
   const response = await apiFetch(path, {
     ...options,
     headers,
-    cache: 'no-store',
+    cache: "no-store",
   });
-  const result = (await response.json().catch(() => null)) as
-    | ApiResponse<T>
-    | null;
+  const result = (await response
+    .json()
+    .catch(() => null)) as ApiResponse<T> | null;
 
   if (!response.ok) {
     throw new Error(
-      result?.message || result?.error || 'The request could not be completed.',
+      result?.message || result?.error || "The request could not be completed.",
     );
   }
 
   if (result?.data === undefined) {
-    throw new Error('The server returned an empty response.');
+    throw new Error("The server returned an empty response.");
   }
 
   return result.data;
@@ -74,8 +74,8 @@ export const createRentBill = (
   billingPeriod: string,
   form: RentBillFormPayload,
 ) =>
-  request<RentBill>('/rent-bills', {
-    method: 'POST',
+  request<RentBill>("/rent-bills", {
+    method: "POST",
     body: JSON.stringify({
       bill: {
         tenantAssignmentId,
@@ -86,23 +86,26 @@ export const createRentBill = (
   });
 
 export const listRentBills = (filters: {
-  year: number;
+  year?: number;
+  month?: number;
   ownerId?: string;
   propertyId?: string;
   apartmentId?: string;
   tenantId?: string;
-  status?: RentBillStatus | '';
+  status?: RentBillStatus | "";
   page?: number;
   limit?: number;
 }) => {
-  const params = new URLSearchParams({ year: String(filters.year) });
-  if (filters.ownerId) params.set('ownerId', filters.ownerId);
-  if (filters.propertyId) params.set('propertyId', filters.propertyId);
-  if (filters.apartmentId) params.set('apartmentId', filters.apartmentId);
-  if (filters.tenantId) params.set('tenantId', filters.tenantId);
-  if (filters.status) params.set('status', filters.status);
-  if (filters.page) params.set('page', String(filters.page));
-  if (filters.limit) params.set('limit', String(filters.limit));
+  const params = new URLSearchParams();
+  if (filters.year !== undefined) params.set("year", String(filters.year));
+  if (filters.month !== undefined) params.set("month", String(filters.month));
+  if (filters.ownerId) params.set("ownerId", filters.ownerId);
+  if (filters.propertyId) params.set("propertyId", filters.propertyId);
+  if (filters.apartmentId) params.set("apartmentId", filters.apartmentId);
+  if (filters.tenantId) params.set("tenantId", filters.tenantId);
+  if (filters.status) params.set("status", filters.status);
+  if (filters.page) params.set("page", String(filters.page));
+  if (filters.limit) params.set("limit", String(filters.limit));
 
   return request<RentBillListData>(`/rent-bills?${params.toString()}`);
 };
@@ -110,12 +113,9 @@ export const listRentBills = (filters: {
 export const getRentBill = (billId: string) =>
   request<RentBill>(`/rent-bills/${billId}`);
 
-export const updateRentBill = (
-  billId: string,
-  form: RentBillFormPayload,
-) =>
+export const updateRentBill = (billId: string, form: RentBillFormPayload) =>
   request<RentBill>(`/rent-bills/${billId}`, {
-    method: 'PATCH',
+    method: "PATCH",
     body: JSON.stringify({ bill: normalizeBillForm(form) }),
   });
 
@@ -130,6 +130,6 @@ export const updateRentBillStatus = (
   },
 ) =>
   request<RentBill>(`/rent-bills/${billId}/status`, {
-    method: 'PATCH',
+    method: "PATCH",
     body: JSON.stringify({ statusUpdate: payload }),
   });

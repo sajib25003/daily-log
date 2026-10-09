@@ -18,7 +18,7 @@ import type {
   RentBillStatus,
 } from '@/types/rentBill';
 import Link from 'next/link';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   FaCheck,
   FaChevronLeft,
@@ -82,6 +82,7 @@ export default function RentBillsPage() {
   const currentYear = new Date().getFullYear();
 
   const [year, setYear] = useState(currentYear);
+  const [month, setMonth] = useState('');
   const [status, setStatus] = useState<RentBillStatus | ''>('');
   const [owners, setOwners] = useState<UserReference[]>([]);
   const [ownerId, setOwnerId] = useState('');
@@ -93,6 +94,7 @@ export default function RentBillsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState('');
+  const requestId = useRef(0);
   const [viewingBill, setViewingBill] = useState<RentBill | null>(null);
   const [editingBill, setEditingBill] = useState<RentBill | null>(null);
 
@@ -149,6 +151,7 @@ export default function RentBillsPage() {
 
   const loadBills = async (refresh = false) => {
     if (!user || !canAccess) return;
+    const currentRequest = ++requestId.current;
     if (refresh) setIsRefreshing(true);
     else setIsLoading(true);
     setError('');
@@ -156,14 +159,17 @@ export default function RentBillsPage() {
     try {
       const result = await listRentBills({
         year,
+        month: month ? Number(month) : undefined,
         ownerId: isSuperAdmin ? ownerId || undefined : undefined,
         propertyId: isManager ? propertyId || undefined : undefined,
         status,
         page,
         limit,
       });
+      if (currentRequest !== requestId.current) return;
       setData(result);
     } catch (requestError) {
+      if (currentRequest !== requestId.current) return;
       setError(
         requestError instanceof Error
           ? requestError.message
@@ -171,8 +177,10 @@ export default function RentBillsPage() {
       );
       setData(emptyResult);
     } finally {
-      setIsLoading(false);
-      setIsRefreshing(false);
+      if (currentRequest === requestId.current) {
+        setIsLoading(false);
+        setIsRefreshing(false);
+      }
     }
   };
 
@@ -180,9 +188,11 @@ export default function RentBillsPage() {
     let cancelled = false;
 
     if (!user || !canAccess) return;
+    const currentRequest = ++requestId.current;
 
     listRentBills({
       year,
+      month: month ? Number(month) : undefined,
       ownerId: isSuperAdmin ? ownerId || undefined : undefined,
       propertyId: isManager ? propertyId || undefined : undefined,
       status,
@@ -190,13 +200,13 @@ export default function RentBillsPage() {
       limit,
     })
       .then((result) => {
-        if (!cancelled) {
+        if (!cancelled && currentRequest === requestId.current) {
           setData(result);
           setError('');
         }
       })
       .catch((requestError: unknown) => {
-        if (!cancelled) {
+        if (!cancelled && currentRequest === requestId.current) {
           setError(
             requestError instanceof Error
               ? requestError.message
@@ -206,13 +216,16 @@ export default function RentBillsPage() {
         }
       })
       .finally(() => {
-        if (!cancelled) setIsLoading(false);
+        if (!cancelled && currentRequest === requestId.current) {
+          setIsLoading(false);
+          setIsRefreshing(false);
+        }
       });
 
     return () => {
       cancelled = true;
     };
-  }, [canAccess, isManager, isSuperAdmin, limit, ownerId, page, propertyId, status, user, year]);
+  }, [canAccess, isManager, isSuperAdmin, limit, month, ownerId, page, propertyId, status, user, year]);
 
   const openBill = async (billId: string) => {
     try {
@@ -416,8 +429,20 @@ export default function RentBillsPage() {
         <section className="mt-5 grid gap-4 rounded-2xl border border-slate-700/60 bg-slate-900/70 p-4 sm:grid-cols-2 lg:grid-cols-4">
           <label>
             <span className="mb-2 block text-xs font-semibold uppercase tracking-wider text-slate-500">Year</span>
-            <select value={year} onChange={(event) => { setYear(Number(event.target.value)); setPage(1); }} className={inputClassName}>
+            <select value={year} onChange={(event) => { setYear(Number(event.target.value)); setPage(1); setIsLoading(true); }} className={inputClassName}>
               {yearOptions.map((value) => <option key={value} value={value}>{value}</option>)}
+            </select>
+          </label>
+
+          <label>
+            <span className="mb-2 block text-xs font-semibold uppercase tracking-wider text-slate-500">Month</span>
+            <select value={month} onChange={(event) => { setMonth(event.target.value); setPage(1); setIsLoading(true); }} className={inputClassName}>
+              <option value="">All months</option>
+              {Array.from({ length: 12 }, (_, index) => (
+                <option key={index + 1} value={index + 1}>
+                  {new Intl.DateTimeFormat('en-US', { month: 'long', timeZone: 'UTC' }).format(new Date(Date.UTC(2000, index, 1)))}
+                </option>
+              ))}
             </select>
           </label>
 
