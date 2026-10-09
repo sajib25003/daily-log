@@ -18,6 +18,7 @@ export type UserReference = {
   phone?: string;
   role?: UserRole;
   userStatus?: 'active' | 'inactive';
+  isDeleted?: boolean;
   ownerId?: string | UserReference | null;
 };
 

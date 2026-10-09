@@ -13,6 +13,7 @@ import {
   createRentBill,
   getRentBillGenerationContext,
 } from '@/lib/rentBillApi';
+import { isBillableTenancy } from '@/lib/rentBillTenancies';
 import type { Property, Tenancy, UserReference } from '@/types/property';
 import {
   formatUserName,
@@ -169,6 +170,11 @@ export default function GenerateRentBillPage() {
     };
   }, [propertyId]);
 
+  const billableTenancies = useMemo(
+    () => tenancies.filter((tenancy) => isBillableTenancy(tenancy, billingPeriod)),
+    [tenancies, billingPeriod],
+  );
+
   const subtotal = useMemo(
     () =>
       form.items.reduce((sum, item) => {
@@ -180,7 +186,7 @@ export default function GenerateRentBillPage() {
   const total = subtotal + Number(form.adjustmentAmount || 0);
 
   const loadContext = async () => {
-    if (!tenancyId || !billingPeriod) {
+    if (!billableTenancies.some((tenancy) => tenancy._id === tenancyId) || !billingPeriod) {
       setError('Select a tenant assignment and billing month.');
       return;
     }
@@ -359,12 +365,13 @@ export default function GenerateRentBillPage() {
               className={inputClassName}
             >
               <option value="">Select a tenant assignment</option>
-              {tenancies.map((tenancy) => (
+              {billableTenancies.map((tenancy) => (
                 <option key={tenancy._id} value={tenancy._id} disabled={!tenancy.tenantId || !tenancy.apartmentId || !tenancy.propertyId || !tenancy.ownerId}>
                   {getTenancyLabel(tenancy)}
                 </option>
               ))}
             </select>
+            {propertyId && billableTenancies.length === 0 && <p className="mt-2 text-xs text-slate-400">No available tenant assignment for this billing month.</p>}
           </label>
 
           <label>
@@ -378,6 +385,7 @@ export default function GenerateRentBillPage() {
                 value={billingPeriod}
                 onChange={(event) => {
                   setBillingPeriod(event.target.value);
+                  setTenancyId('');
                   setContext(null);
                 }}
                 className={`${inputClassName} pl-11`}
