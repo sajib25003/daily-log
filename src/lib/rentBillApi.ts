@@ -32,13 +32,13 @@ const request = async <T>(
     .json()
     .catch(() => null)) as ApiResponse<T> | null;
 
-  if (!response.ok) {
+  if (!response.ok || result?.success === false) {
     throw new Error(
       result?.message || result?.error || "The request could not be completed.",
     );
   }
 
-  if (result?.data === undefined) {
+  if (result?.data == null) {
     throw new Error("The server returned an empty response.");
   }
 
@@ -133,3 +133,5 @@ export const updateRentBillStatus = (
     method: "PATCH",
     body: JSON.stringify({ statusUpdate: payload }),
   });
+
+export const deleteRentBill = (billId: string) => request<{ _id: string; receiptNumber: string; deleted: boolean }>(`/rent-bills/${billId}`, { method: "DELETE" });

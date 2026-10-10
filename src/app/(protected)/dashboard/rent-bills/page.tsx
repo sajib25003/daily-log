@@ -8,6 +8,7 @@ import {
   getRentBill,
   listRentBills,
   updateRentBillStatus,
+  deleteRentBill,
 } from '@/lib/rentBillApi';
 import type { Property, UserReference } from '@/types/property';
 import { formatUserName, getDocumentId } from '@/types/property';
@@ -338,20 +339,20 @@ export default function RentBillsPage() {
 
   const updateWithReason = async (
     bill: RentBill,
-    nextStatus: 'due' | 'void',
+    nextStatus: 'due',
   ) => {
     const result = await Swal.fire({
-      title: nextStatus === 'void' ? 'Void this bill?' : 'Reopen as due?',
+      title: 'Reopen as due?',
       input: 'textarea',
       inputLabel: 'Reason',
       inputPlaceholder: 'Enter the reason...',
       inputAttributes: { maxlength: '1000' },
       showCancelButton: true,
-      confirmButtonText: nextStatus === 'void' ? 'Void bill' : 'Reopen bill',
+      confirmButtonText: 'Reopen bill',
       heightAuto: false,
       background: '#0f172a',
       color: '#e2e8f0',
-      confirmButtonColor: nextStatus === 'void' ? '#dc2626' : '#d97706',
+      confirmButtonColor: '#d97706',
       cancelButtonColor: '#334155',
       inputValidator: (value) => (!value.trim() ? 'A reason is required.' : undefined),
     });
@@ -365,13 +366,32 @@ export default function RentBillsPage() {
       });
       replaceBill(updated);
       await loadBills(true);
-      showSuccess(nextStatus === 'void' ? 'Bill voided.' : 'Bill reopened.');
+      showSuccess('Bill reopened.');
     } catch (requestError) {
       setError(
         requestError instanceof Error
           ? requestError.message
           : 'Failed to update bill status.',
       );
+    }
+  };
+
+  const removeReceipt = async (bill: RentBill) => {
+    const decision = await Swal.fire({ title: 'Permanently delete this receipt?',
+      text: `${bill.receiptNumber} and its payment history will be removed. This cannot be undone. Submeter readings will remain.`,
+      icon: 'warning', showCancelButton: true, confirmButtonText: 'Delete permanently',
+      confirmButtonColor: '#dc2626', heightAuto: false, background: '#0f172a', color: '#e2e8f0' });
+    if (!decision.isConfirmed) return;
+    try {
+      await deleteRentBill(bill._id);
+      setViewingBill((current) => current?._id === bill._id ? null : current);
+      setEditingBill((current) => current?._id === bill._id ? null : current);
+      await loadBills(true);
+      showSuccess('Receipt permanently deleted.');
+    } catch (requestError) {
+      const message = requestError instanceof Error ? requestError.message : 'Failed to delete receipt.';
+      setError(message);
+      await Swal.fire({ icon: 'error', title: 'Receipt was not deleted', text: message, heightAuto: false });
     }
   };
 
@@ -452,7 +472,7 @@ export default function RentBillsPage() {
               <option value="">All statuses</option>
               <option value="due">Due</option>
               <option value="paid">Paid</option>
-              {isManager && <option value="void">Void</option>}
+
             </select>
           </label>
 
@@ -533,7 +553,7 @@ export default function RentBillsPage() {
                           {isManager && bill.status === 'due' && <ActionButton label="Edit bill" onClick={() => setEditingBill(bill)} icon={<FaEdit />} />}
                           {isManager && bill.status === 'due' && <ActionButton label="Mark paid" onClick={() => void markPaid(bill)} icon={<FaCheck />} tone="emerald" />}
                           {isManager && bill.status === 'paid' && <ActionButton label="Reopen as due" onClick={() => void updateWithReason(bill, 'due')} icon={<FaRedo />} tone="amber" />}
-                          {isManager && bill.status !== 'void' && <ActionButton label="Void bill" onClick={() => void updateWithReason(bill, 'void')} icon={<FaTimes />} tone="red" />}
+                          {isManager && <ActionButton label="Delete receipt" onClick={() => void removeReceipt(bill)} icon={<FaTimes />} tone="red" />}
                         </div>
                       </td>
                     </tr>

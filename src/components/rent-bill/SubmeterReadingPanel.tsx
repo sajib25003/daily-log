@@ -8,6 +8,7 @@ import {
 import type { ElectricityCalculation } from "@/types/billing";
 import type { SubmeterContext, SubmeterReading } from "@/types/submeter";
 import { useEffect, useRef, useState } from "react";
+import Swal from "sweetalert2";
 
 const money = new Intl.NumberFormat("en-BD", {
   style: "currency",
@@ -191,6 +192,10 @@ export default function SubmeterReadingPanel({
             `Reading saved. ${result.syncedRentBills ?? 0} existing due rent bill(s) updated automatically.`,
         );
         onSaved(result);
+        void Swal.fire({ icon: result.syncWarning ? 'warning' : 'success',
+          title: result.syncWarning ? 'Reading saved; receipt sync needs retry' : record ? 'Submeter bill updated' : 'Submeter bill saved',
+          text: result.syncWarning || `${result.syncedRentBills ?? 0} due receipt(s) updated automatically. Paid receipts were preserved.`,
+          heightAuto: false, background: '#0f172a', color: '#e2e8f0' });
       } else {
         const result = await previewSubmeterReading(payload);
         if (mounted.current) setCalculation(result);

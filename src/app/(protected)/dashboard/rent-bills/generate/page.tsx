@@ -263,12 +263,10 @@ export default function GenerateRentBillPage() {
       });
       router.push('/dashboard/rent-bills');
     } catch (requestError) {
-      setPreviewOpen(false);
-      setError(
-        requestError instanceof Error
-          ? requestError.message
-          : 'Failed to generate the bill.',
-      );
+      const message = requestError instanceof Error ? requestError.message : 'Failed to generate the bill.';
+      setError(message);
+      await Swal.fire({ icon: 'error', title: 'Receipt was not created', text: message,
+        heightAuto: false, background: '#0f172a', color: '#e2e8f0' });
     } finally {
       setIsSaving(false);
     }

@@ -1,6 +1,8 @@
 'use client';
 
 import ManagementModal from '@/components/property/ManagementModal';
+import SubmeterReadingPanel from '@/components/rent-bill/SubmeterReadingPanel';
+import { getDocumentId } from '@/types/property';
 import RentBillFormFields from '@/components/rent-bill/RentBillFormFields';
 import { updateRentBill } from '@/lib/rentBillApi';
 import type { RentBill, RentBillFormPayload } from '@/types/rentBill';
@@ -67,6 +69,10 @@ export default function RentBillEditModal({ bill, onClose, onSaved }: Props) {
       maxWidthClass="max-w-3xl"
     >
       <form onSubmit={submit} className="space-y-5 p-5">
+        {(bill.submeterManaged || bill.submeterReading) && <SubmeterReadingPanel
+          apartmentId={getDocumentId(bill.apartmentId)} billingPeriod={bill.billingPeriod}
+          onSaved={(reading) => setForm((current) => ({ ...current, items: current.items.map((item) => item.key === 'ELECTRICITY' ? { ...item, amount: String(reading.calculation.totalAmount) } : item) }))}
+        />}
         <RentBillFormFields
           lockElectricity={Boolean(bill.submeterManaged || bill.submeterReading)}
           form={form}
